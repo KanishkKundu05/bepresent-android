@@ -22,6 +22,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -34,6 +35,7 @@ class MonitoringService : Service() {
     @Inject lateinit var sessionManager: SessionManager
 
     private val serviceScope = CoroutineScope(Dispatchers.Default + SupervisorJob())
+    private var pollingJob: Job? = null
     private var lastBlockedPackage: String? = null
     private var lastBlockedTime: Long = 0
 
@@ -51,7 +53,8 @@ class MonitoringService : Service() {
     }
 
     private fun startPolling() {
-        serviceScope.launch {
+        if (pollingJob?.isActive == true) return
+        pollingJob = serviceScope.launch {
             while (isActive) {
                 try {
                     val foregroundPackage = usageStatsRepository.detectForegroundApp()
