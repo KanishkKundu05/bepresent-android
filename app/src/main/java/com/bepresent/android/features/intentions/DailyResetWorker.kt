@@ -28,25 +28,37 @@ class DailyResetWorker @AssistedInject constructor(
 
     override suspend fun doWork(): Result {
         val today = LocalDate.now().toString()
-        val intentions = intentionDao.getAllOnce()
+        val dayOfWeek = LocalDate.now().dayOfWeek
 
+        // Grant new freeze on Mondays (before consumption)
+        if (dayOfWeek == DayOfWeek.MONDAY) {
+            val lastGrantDate = preferencesManager.getLastFreezeGrantDateOnce()
+            if (lastGrantDate != today) {
+                preferencesManager.setStreakFreezeAvailable(true)
+                preferencesManager.setLastFreezeGrantDate(today)
+            }
+        }
+
+        val intentions = intentionDao.getAllOnce()
         val freezeAvailable = preferencesManager.getStreakFreezeAvailableOnce()
-        var freezeUsed = false
+
+        // Pre-scan: determine if any intention is over-limit
+        val anyOverLimit = intentions.any { intention ->
+            intention.lastResetDate != today && intention.totalOpensToday > intention.allowedOpensPerDay
+        }
+
+        // Decide freeze once for all intentions
+        val freezeActive = freezeAvailable && anyOverLimit
 
         for (intention in intentions) {
             // Skip if already reset today
             if (intention.lastResetDate == today) continue
 
             val withinLimit = intention.totalOpensToday <= intention.allowedOpensPerDay
-            val newStreak: Int
-
-            if (withinLimit) {
-                newStreak = intention.streak + 1
-            } else if (freezeAvailable && !freezeUsed) {
-                newStreak = intention.streak + 1
-                freezeUsed = true
+            val newStreak = if (withinLimit || freezeActive) {
+                intention.streak + 1
             } else {
-                newStreak = 0
+                0
             }
 
             val updated = intention.copy(
@@ -59,19 +71,9 @@ class DailyResetWorker @AssistedInject constructor(
             intentionDao.upsert(updated)
         }
 
-        // Consume freeze if used
-        if (freezeUsed) {
+        // Consume freeze after loop if it was activated
+        if (freezeActive) {
             preferencesManager.setStreakFreezeAvailable(false)
-        }
-
-        // Grant new freeze on Mondays
-        val dayOfWeek = LocalDate.now().dayOfWeek
-        if (dayOfWeek == DayOfWeek.MONDAY) {
-            val lastGrantDate = preferencesManager.getLastFreezeGrantDateOnce()
-            if (lastGrantDate != today) {
-                preferencesManager.setStreakFreezeAvailable(true)
-                preferencesManager.setLastFreezeGrantDate(today)
-            }
         }
 
         return Result.success()
