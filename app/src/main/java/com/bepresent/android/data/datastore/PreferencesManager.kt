@@ -1,0 +1,81 @@
+package com.bepresent.android.data.datastore
+
+import android.content.Context
+import androidx.datastore.core.DataStore
+import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.booleanPreferencesKey
+import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.intPreferencesKey
+import androidx.datastore.preferences.core.stringPreferencesKey
+import androidx.datastore.preferences.preferencesDataStore
+import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
+import javax.inject.Inject
+import javax.inject.Singleton
+
+private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "bepresent_prefs")
+
+@Singleton
+class PreferencesManager @Inject constructor(
+    @ApplicationContext private val context: Context
+) {
+    private val dataStore = context.dataStore
+
+    // Keys
+    private object Keys {
+        val ONBOARDING_COMPLETED = booleanPreferencesKey("onboarding_completed")
+        val TOTAL_XP = intPreferencesKey("total_xp")
+        val TOTAL_COINS = intPreferencesKey("total_coins")
+        val STREAK_FREEZE_AVAILABLE = booleanPreferencesKey("streak_freeze_available")
+        val LAST_FREEZE_GRANT_DATE = stringPreferencesKey("last_freeze_grant_date")
+        val ACTIVE_SESSION_ID = stringPreferencesKey("active_session_id")
+    }
+
+    // Flows
+    val onboardingCompleted: Flow<Boolean> = dataStore.data.map { it[Keys.ONBOARDING_COMPLETED] ?: false }
+    val totalXp: Flow<Int> = dataStore.data.map { it[Keys.TOTAL_XP] ?: 0 }
+    val totalCoins: Flow<Int> = dataStore.data.map { it[Keys.TOTAL_COINS] ?: 0 }
+    val streakFreezeAvailable: Flow<Boolean> = dataStore.data.map { it[Keys.STREAK_FREEZE_AVAILABLE] ?: true }
+    val lastFreezeGrantDate: Flow<String> = dataStore.data.map { it[Keys.LAST_FREEZE_GRANT_DATE] ?: "" }
+    val activeSessionId: Flow<String?> = dataStore.data.map { it[Keys.ACTIVE_SESSION_ID] }
+
+    // Setters
+    suspend fun setOnboardingCompleted(completed: Boolean) {
+        dataStore.edit { it[Keys.ONBOARDING_COMPLETED] = completed }
+    }
+
+    suspend fun addXpAndCoins(xp: Int, coins: Int) {
+        dataStore.edit { prefs ->
+            prefs[Keys.TOTAL_XP] = (prefs[Keys.TOTAL_XP] ?: 0) + xp
+            prefs[Keys.TOTAL_COINS] = (prefs[Keys.TOTAL_COINS] ?: 0) + coins
+        }
+    }
+
+    suspend fun setStreakFreezeAvailable(available: Boolean) {
+        dataStore.edit { it[Keys.STREAK_FREEZE_AVAILABLE] = available }
+    }
+
+    suspend fun setLastFreezeGrantDate(date: String) {
+        dataStore.edit { it[Keys.LAST_FREEZE_GRANT_DATE] = date }
+    }
+
+    suspend fun setActiveSessionId(sessionId: String?) {
+        dataStore.edit { prefs ->
+            if (sessionId != null) {
+                prefs[Keys.ACTIVE_SESSION_ID] = sessionId
+            } else {
+                prefs.remove(Keys.ACTIVE_SESSION_ID)
+            }
+        }
+    }
+
+    suspend fun getStreakFreezeAvailableOnce(): Boolean {
+        return dataStore.data.first()[Keys.STREAK_FREEZE_AVAILABLE] ?: true
+    }
+
+    suspend fun getLastFreezeGrantDateOnce(): String {
+        return dataStore.data.first()[Keys.LAST_FREEZE_GRANT_DATE] ?: ""
+    }
+}
