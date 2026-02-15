@@ -1,0 +1,150 @@
+# MVP Tech Debt Audit (Atomic Commit Review)
+
+## Scope
+- Reviewed commits atomically from `074a51b` through `4ade2f5`.
+- Compared implementation against `planning/mvp-single-screen.md` only (per request).
+- Cross-checked public docs in `docs/` and `CLAUDE.md` for drift.
+- Did not propose solutions; this file records debt only.
+
+## Verification limits
+- Build/test execution was not possible in this environment because Java runtime is missing (`./gradlew :app:assembleDebug` failed with “Unable to locate a Java Runtime”).
+
+## Severity key
+- `S0`: Critical functional correctness or core-flow break.
+- `S1`: High risk user-facing behavior gap.
+- `S2`: Medium maintainability/performance/testability debt.
+- `S3`: Low documentation/polish debt.
+
+## Commit-by-commit debt log
+
+### `074a51b` — project skeleton: gradle, build config, wrapper
+
+| ID | Sev | Debt | Evidence | Impact |
+|---|---|---|---|---|
+| TD-001 | S1 | Gradle wrapper is incomplete (`gradle-wrapper.jar` missing). | `gradle/wrapper/gradle-wrapper.properties`, missing `gradle/wrapper/gradle-wrapper.jar` | Clean checkout cannot rely on `./gradlew` unless global Gradle is installed. |
+| TD-002 | S2 | No test baseline exists (unit/instrumentation test sources absent). | No files under `app/src/test` or `app/src/androidTest` | Regressions can ship without automated safety net. |
+
+### `dc425da` — manifest, resources, and launcher icon
+
+| ID | Sev | Debt | Evidence | Impact |
+|---|---|---|---|---|
+| TD-003 | S2 | App backup is enabled despite storing behavior-sensitive local data. | `app/src/main/AndroidManifest.xml:36` | Device/app backup can copy usage/intentions/session data unexpectedly. |
+| TD-004 | S2 | Shield activity uses the base app theme, not a dedicated fullscreen shield theme from spec intent. | `app/src/main/AndroidManifest.xml:60`, `app/src/main/res/values/themes.xml:3` | Shield-specific visual/system-bar behavior is harder to control and isolate. |
+
+### `b7429ba` — material 3 theme: colors, typography, light/dark
+
+| ID | Sev | Debt | Evidence | Impact |
+|---|---|---|---|---|
+| TD-005 | S3 | Theme system is defined, but most UI copy remains hardcoded in composables instead of resource-backed strings. | Example hardcoded copy in `app/src/main/java/com/bepresent/android/ui/components/ScreenTimeCard.kt:59` | Localization/theming consistency debt accumulates immediately. |
+
+### `c11828f` — room database: entities, DAOs, database class
+
+| ID | Sev | Debt | Evidence | Impact |
+|---|---|---|---|---|
+| TD-006 | S1 | `AppIntention` has no uniqueness guarantee on `packageName`; duplicates are structurally allowed. | `app/src/main/java/com/bepresent/android/data/db/AppIntention.kt:6-19` | Duplicate intentions for same app can create inconsistent blocking/state math. |
+| TD-007 | S1 | `getByPackage()` assumes uniqueness but query is unconstrained and unordered. | `app/src/main/java/com/bepresent/android/data/db/AppIntentionDao.kt:18-19` | Returned intention is nondeterministic if duplicates exist. |
+| TD-008 | S1 | Active session query is unordered (`LIMIT 1` without ordering) while multiple active rows are possible. | `app/src/main/java/com/bepresent/android/data/db/PresentSessionDao.kt:11-15` | Wrong active session can be selected for blocking, rewards, and shield type. |
+| TD-009 | S2 | Session action rows have no Room FK/index constraints to `present_sessions`. | `app/src/main/java/com/bepresent/android/data/db/PresentSession.kt:32-38` | Orphaned or slow action queries become likely as data grows. |
+
+### `1cd7933` — datastore preferences and usage stats repository
+
+| ID | Sev | Debt | Evidence | Impact |
+|---|---|---|---|---|
+| TD-010 | S2 | Usage stats methods are synchronous and called from non-IO paths in UI flow. | `app/src/main/java/com/bepresent/android/data/usage/UsageStatsRepository.kt:23-46` | Main-thread stalls/jank risk on slower devices or large usage datasets. |
+| TD-011 | S2 | Foreground detection relies only on recent `MOVE_TO_FOREGROUND` events in last 5s. | `app/src/main/java/com/bepresent/android/data/usage/UsageStatsRepository.kt:41-55` | Detection can be stale/null outside event windows, reducing shielding reliability. |
+
+### `bc507e4` — hilt DI, application class, main activity
+
+| ID | Sev | Debt | Evidence | Impact |
+|---|---|---|---|---|
+| TD-012 | S2 | Onboarding/dashboard routing is state-only with no explicit nav contract; callback is a no-op. | `app/src/main/java/com/bepresent/android/MainActivity.kt:35-39` | Flow control is implicit and fragile under future onboarding changes. |
+
+### `1372dfa` — permission manager and onboarding flow
+
+| ID | Sev | Debt | Evidence | Impact |
+|---|---|---|---|---|
+| TD-013 | S2 | Onboarding composition uses `EntryPointAccessors` directly in UI layer instead of typed ViewModel/injected boundaries. | `app/src/main/java/com/bepresent/android/ui/onboarding/OnboardingScreen.kt:58-66` | Harder to test, mock, and evolve onboarding state machine. |
+| TD-014 | S2 | Permission status model marks notifications+battery in `allGranted`, but dashboard health later checks only usage stats; policy is inconsistent across layers. | `app/src/main/java/com/bepresent/android/permissions/PermissionManager.kt:58-64` | Permission UX semantics drift and confuse operational behavior. |
+| TD-015 | S3 | Onboarding strings are hardcoded despite `strings.xml` containing many equivalents. | `app/src/main/java/com/bepresent/android/ui/onboarding/OnboardingScreen.kt:94-183`, `app/src/main/res/values/strings.xml` | Localization/content iteration debt. |
+
+### `5cc825d` — app picker bottom sheet with search and multi-select
+
+| ID | Sev | Debt | Evidence | Impact |
+|---|---|---|---|---|
+| TD-016 | S2 | Installed app discovery runs on main thread in `LaunchedEffect`. | `app/src/main/java/com/bepresent/android/ui/picker/AppPickerSheet.kt:62-78` | Opening picker can cause visible UI hitching. |
+| TD-017 | S2 | Per-row icon conversion (`Drawable`→`Bitmap`) is performed in composition path for each item. | `app/src/main/java/com/bepresent/android/ui/picker/AppPickerSheet.kt:147-151` | Memory churn and scroll jank risk on large app lists. |
+| TD-018 | S3 | Selection state is ephemeral and not modeled for preselection/edit workflows. | `app/src/main/java/com/bepresent/android/ui/picker/AppPickerSheet.kt:60` | Re-open/edit UX will require ad-hoc state plumbing later. |
+
+### `6162f97` — app intentions: manager, daily reset worker, config sheet
+
+| ID | Sev | Debt | Evidence | Impact |
+|---|---|---|---|---|
+| TD-019 | S0 | Commit is not atomic/buildable in isolation; it imports service classes not yet present in this commit. | `git show 6162f97:.../IntentionManager.kt` imports `com.bepresent.android.service.*`; no `service/` files in `git ls-tree -r 6162f97` | Breaks atomic commit integrity and bisectability. |
+| TD-020 | S0 | Intention delete path can stop monitoring even if a session is active (depends only on intention count + unconditional stop helper). | `app/src/main/java/com/bepresent/android/features/intentions/IntentionManager.kt:58-62`, `app/src/main/java/com/bepresent/android/service/MonitoringService.kt:186-191` | Active session blocking can silently die. |
+| TD-021 | S1 | `openApp()` performs multi-step state mutation without transaction boundary. | `app/src/main/java/com/bepresent/android/features/intentions/IntentionManager.kt:65-69`, DAO ops at `AppIntentionDao.kt:30-34` | Partial writes can desync opens count vs open-state on failures. |
+| TD-022 | S1 | Spec flow says open-window should emit immediate notification; manager does not do this. | `app/src/main/java/com/bepresent/android/features/intentions/IntentionManager.kt:65-69`, spec `planning/mvp-single-screen.md:171-176` | User gets weaker time-window awareness and less predictability. |
+| TD-023 | S2 | Alarm scheduling uses `setAlarmClock()` for internal timers. | `app/src/main/java/com/bepresent/android/features/intentions/IntentionManager.kt:97-116` | System alarm UX semantics/noise for non-user alarms; rough platform fit. |
+| TD-024 | S0 | Streak freeze logic protects only the first over-limit intention (`freezeUsed` gate), but spec says freeze protects all intentions for that day. | `app/src/main/java/com/bepresent/android/features/intentions/DailyResetWorker.kt:34-49`, spec `planning/mvp-single-screen.md:205-207` | Multi-intention users can lose streaks incorrectly. |
+| TD-025 | S1 | Monday auto-grant runs after freeze consumption, so a consumed freeze can be re-granted in same worker run. | `app/src/main/java/com/bepresent/android/features/intentions/DailyResetWorker.kt:63-74` | Weekly freeze accounting can be bypassed/inaccurate. |
+
+### `4660170` — blocking sessions: state machine, manager, config sheet
+
+| ID | Sev | Debt | Evidence | Impact |
+|---|---|---|---|---|
+| TD-026 | S0 | Commit is not atomic/buildable in isolation; session manager imports service classes added in later commit. | `git show 4660170:.../SessionManager.kt` imports `com.bepresent.android.service.*`; no `service/` files in `git ls-tree -r 4660170` | Breaks atomic commit integrity and bisectability. |
+| TD-027 | S1 | `createAndStart()` bypasses state machine validation and can create a new active session without checking existing one. | `app/src/main/java/com/bepresent/android/features/sessions/SessionManager.kt:30-67` | Multiple active sessions and nondeterministic blocking become possible. |
+| TD-028 | S1 | Session start lacks manager-level validation for empty blocked app set / blank session naming constraints. | `app/src/main/java/com/bepresent/android/features/sessions/SessionManager.kt:30-47` | Invalid session records can enter DB when called outside current UI assumptions. |
+| TD-029 | S0 | Session end transitions call unconditional monitoring stop helper, regardless of remaining intentions. | `app/src/main/java/com/bepresent/android/features/sessions/SessionManager.kt:84-85`, `105-106`, `153-154` | Intention blocking can be unintentionally disabled after session actions. |
+| TD-030 | S2 | Session goal timer also uses `setAlarmClock()` internal alarm pattern. | `app/src/main/java/com/bepresent/android/features/sessions/SessionManager.kt:180-183` | Same platform-fit/UX debt as intention timers. |
+
+### `1d5821c` — shield screen, monitoring service, alarm receivers
+
+| ID | Sev | Debt | Evidence | Impact |
+|---|---|---|---|---|
+| TD-031 | S0 | Monitoring service can spawn multiple concurrent polling loops on repeated starts. | `app/src/main/java/com/bepresent/android/service/MonitoringService.kt:42-45`, `53-77` | Duplicate shield launches, extra battery drain, racey behavior. |
+| TD-032 | S1 | Service lifecycle helper is a placeholder that always stops service. | `app/src/main/java/com/bepresent/android/service/MonitoringService.kt:186-191` | Violates spec lifecycle (`stop only when no session and no intentions`). |
+| TD-033 | S1 | Service start path does not verify Usage Access permission as required by spec. | `app/src/main/java/com/bepresent/android/service/MonitoringService.kt:42-46`, spec `planning/mvp-single-screen.md:650` | Silent monitoring failures instead of guided recovery. |
+| TD-034 | S1 | Session notification update API exists but is never integrated into session lifecycle. | `app/src/main/java/com/bepresent/android/service/MonitoringService.kt:135-172` | Documented chronometer/goal update behavior is incomplete in runtime flow. |
+| TD-035 | S0 | Intention re-block receiver does not relaunch shield when target app is still foreground (explicit spec requirement). | `app/src/main/java/com/bepresent/android/service/IntentionAlarmReceiver.kt:41-50`, spec `planning/mvp-single-screen.md:178-180` | User can remain inside app past intended re-shield boundary. |
+| TD-036 | S2 | Broadcast receivers instantiate ad-hoc Room DB instances per event instead of injected singleton path. | `app/src/main/java/com/bepresent/android/service/BootCompletedReceiver.kt:19-23`, `IntentionAlarmReceiver.kt:21-25`, `SessionAlarmReceiver.kt:26-30` | Repeated cold DB setup overhead and duplicated persistence configuration. |
+| TD-037 | S1 | Boot receiver does not gate service start on current permission health. | `app/src/main/java/com/bepresent/android/service/BootCompletedReceiver.kt:29-31` | Service can restart into non-functional state after reboot. |
+| TD-038 | S1 | `BlockedAppActivity` is `singleTask` but has no `onNewIntent` handling for updated package/shield extras. | `app/src/main/java/com/bepresent/android/features/blocking/BlockedAppActivity.kt:18-51` | Existing activity instance can show stale shield context. |
+| TD-039 | S1 | Intention shield exits composition when intention lookup fails, leaving blank content path. | `app/src/main/java/com/bepresent/android/features/blocking/ShieldScreen.kt:225` | User can hit empty/blocked UI state without recovery action. |
+| TD-040 | S2 | Session and goal-reached shield variants read session once (non-reactive snapshot). | `app/src/main/java/com/bepresent/android/features/blocking/ShieldScreen.kt:76-80`, `151-155` | UI can drift from actual session state while shield is visible. |
+| TD-041 | S2 | Session shield includes stubbed secondary action (`Unlock?` no behavior). | `app/src/main/java/com/bepresent/android/features/blocking/ShieldScreen.kt:129` | Incomplete interaction contract in a core intervention screen. |
+| TD-042 | S1 | Freeze banner is tied directly to global availability flag, not “freeze active for this day”. | `app/src/main/java/com/bepresent/android/features/blocking/ShieldScreen.kt:219`, `290-298`, spec `planning/mvp-single-screen.md:205-207` | Misleading streak messaging and user trust issues. |
+| TD-043 | S3 | Service/shield notifications and copy are hardcoded in codepaths rather than resources. | `app/src/main/java/com/bepresent/android/service/MonitoringService.kt:126-127`, `IntentionAlarmReceiver.kt:35-48`, `SessionAlarmReceiver.kt:62-63` | Localization/content governance debt. |
+
+### `3fd9085` — dashboard screen with all components wired
+
+| ID | Sev | Debt | Evidence | Impact |
+|---|---|---|---|---|
+| TD-044 | S1 | Permission banner claims “tap to fix” but has no clickable behavior or settings routing. | `app/src/main/java/com/bepresent/android/ui/dashboard/DashboardScreen.kt:101-116`, spec `planning/mvp-single-screen.md:729-730` | Broken expectation in critical recovery flow. |
+| TD-045 | S1 | Active session elapsed/cancel window use one-shot wall clock reads without ticker state. | `app/src/main/java/com/bepresent/android/ui/dashboard/DashboardScreen.kt:261-263` | Timer/cancel affordances become stale until unrelated recomposition. |
+| TD-046 | S3 | Dead UI state remains (`appPickerMode`, unused `context`). | `app/src/main/java/com/bepresent/android/ui/dashboard/DashboardScreen.kt:48`, `52` | Increases cognitive load and risk during future edits. |
+| TD-047 | S2 | ViewModel combine uses indexed casts from vararg array instead of typed combine. | `app/src/main/java/com/bepresent/android/ui/dashboard/DashboardViewModel.kt:47-63` | Refactor brittleness and runtime cast-risk debt. |
+| TD-048 | S2 | Permission health in dashboard only respects `criticalGranted` (usage stats), diverging from broader checks in docs. | `app/src/main/java/com/bepresent/android/ui/dashboard/DashboardViewModel.kt:72`, docs `planning/mvp-single-screen.md:725-730` | Dashboard may under-report degraded reliability states. |
+| TD-049 | S2 | Screen time and intention cards convert app icons to bitmaps inside composition paths. | `app/src/main/java/com/bepresent/android/ui/components/ScreenTimeCard.kt:97-103`, `app/src/main/java/com/bepresent/android/ui/components/IntentionCard.kt:36-39` | Recomposition/scroll performance and memory churn debt. |
+
+### `4ade2f5` — docs: claude context, architecture, setup, features
+
+| ID | Sev | Debt | Evidence | Impact |
+|---|---|---|---|---|
+| TD-050 | S1 | Docs state monitoring service "stops when neither applies", but implementation stop helper is unconditional. | `docs/architecture.md:38`, `app/src/main/java/com/bepresent/android/service/MonitoringService.kt:186-191` | Operator/developer mental model diverges from runtime behavior. |
+| TD-051 | S1 | Docs/spec state re-shield occurs if app still foreground at timer expiry; receiver does not enforce it. | `docs/features.md:15`, `app/src/main/java/com/bepresent/android/service/IntentionAlarmReceiver.kt:41-50` | Documentation overstates blocking guarantees. |
+| TD-052 | S1 | Docs call out permission banner tap-to-fix behavior; dashboard implementation lacks this action. | `docs/features.md:98`, `app/src/main/java/com/bepresent/android/ui/dashboard/DashboardScreen.kt:101-116` | Recovery path documented but not implemented. |
+| TD-053 | S1 | Build-order/doc narrative includes session notification action and full chronometer lifecycle; implementation is partial/unwired. | `planning/mvp-single-screen.md:960-963`, `app/src/main/java/com/bepresent/android/service/MonitoringService.kt:135-172` | Feature completeness appears higher in docs than in shipped code. |
+
+## Cross-cutting debt inventory
+
+| Area | Debt summary | Evidence |
+|---|---|---|
+| Atomic commit hygiene | Two core feature commits are not independently buildable because they reference symbols introduced later. | TD-019, TD-026 |
+| Service lifecycle correctness | Start/stop semantics are incomplete and can disable blocking incorrectly across flows. | TD-020, TD-029, TD-031, TD-032 |
+| Intention timer correctness | Re-block flow does not guarantee immediate reshield while target app remains foreground. | TD-035 |
+| Streak correctness | Freeze semantics diverge from spec for multi-intention days and Monday grant edge. | TD-024, TD-025, TD-042 |
+| Dashboard recovery UX | Critical permission banner promises an action it does not provide. | TD-044, TD-052 |
+| Data integrity | No uniqueness/FK constraints for key entities and nondeterministic active-session queries. | TD-006, TD-007, TD-008, TD-009 |
+| Performance | App enumeration/icon conversion and repeated DB builders in receivers add avoidable overhead. | TD-016, TD-017, TD-036, TD-049 |
+| Testability | No automated tests in repo; no commit establishes baseline regression checks. | TD-002 |
+| Documentation drift | Multiple docs claim behavior that current code does not fully implement. | TD-050, TD-051, TD-052, TD-053 |
