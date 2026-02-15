@@ -1,0 +1,97 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">BePresent</string>
+
+    <!-- Onboarding -->
+    <string name="onboarding_welcome_title">Be Present</string>
+    <string name="onboarding_welcome_subtitle">Be intentional with your phone</string>
+    <string name="onboarding_welcome_cta">Get Started</string>
+
+    <string name="onboarding_usage_title">Usage Access</string>
+    <string name="onboarding_usage_subtitle">BePresent needs to see which apps you use to help you set limits</string>
+    <string name="onboarding_usage_cta">Grant Access</string>
+    <string name="onboarding_usage_required">This permission is required for BePresent to work</string>
+
+    <string name="onboarding_notifications_title">Notifications</string>
+    <string name="onboarding_notifications_subtitle">Get notified when your app time is up and sessions complete</string>
+    <string name="onboarding_notifications_cta">Enable Notifications</string>
+
+    <string name="onboarding_battery_title">Battery Optimization</string>
+    <string name="onboarding_battery_subtitle">Keep BePresent running reliably in the background</string>
+    <string name="onboarding_battery_cta">Disable Battery Optimization</string>
+
+    <string name="onboarding_done_title">You\'re Ready!</string>
+    <string name="onboarding_done_subtitle">Time to be present</string>
+    <string name="onboarding_done_cta">Open Dashboard</string>
+
+    <!-- Dashboard -->
+    <string name="dashboard_screen_time">Screen Time Today</string>
+    <string name="dashboard_your_intentions">Your Intentions</string>
+    <string name="dashboard_add">+ Add</string>
+    <string name="dashboard_start_session">Start Blocking Session</string>
+
+    <!-- Intentions -->
+    <string name="intention_opens_today">%1$d/%2$d Opens Today</string>
+    <string name="intention_streak">%d Day Streak</string>
+    <string name="intention_allowed_opens">Allowed opens per day</string>
+    <string name="intention_time_per_open">Time per open (minutes)</string>
+    <string name="intention_create">Create Intention</string>
+    <string name="intention_edit">Edit Intention</string>
+    <string name="intention_delete">Delete Intention</string>
+
+    <!-- Shield - Intention -->
+    <string name="shield_intention_title">Open %s?</string>
+    <string name="shield_intention_nevermind">Nevermind</string>
+    <string name="shield_intention_open">Open %s</string>
+    <string name="shield_intention_open_for">for %d minutes</string>
+    <string name="shield_intention_over_limit">You\'ve used all %d opens today</string>
+    <string name="shield_intention_streak_warning">Opening will break your %d day streak</string>
+    <string name="shield_intention_open_anyway">Open Anyway</string>
+    <string name="shield_freeze_active">Streak Freeze Active</string>
+
+    <!-- Shield - Session -->
+    <string name="shield_session_title">Focus Session</string>
+    <string name="shield_session_be_present">Be Present</string>
+    <string name="shield_session_unlock">Unlock?</string>
+    <string name="shield_session_unlock_info">To end this session, open BePresent and tap \"Give Up\"</string>
+    <string name="shield_session_beast_mode">Beast Mode is ON — this session cannot be ended early</string>
+
+    <!-- Shield - Goal Reached -->
+    <string name="shield_goal_title">Session Goal Reached!</string>
+    <string name="shield_goal_xp">+%d XP</string>
+    <string name="shield_goal_complete">Complete</string>
+    <string name="shield_goal_stay_present">Stay Present</string>
+
+    <!-- Session Config -->
+    <string name="session_name_label">Session Name</string>
+    <string name="session_name_default">Focus Session</string>
+    <string name="session_duration">Goal Duration</string>
+    <string name="session_apps_to_block">Apps to Block</string>
+    <string name="session_beast_mode">Beast Mode</string>
+    <string name="session_beast_mode_desc">Disable \"Give Up\" — you can\'t end early</string>
+    <string name="session_start">Start Session</string>
+    <string name="session_give_up">Give Up</string>
+    <string name="session_end">End Session</string>
+    <string name="session_cancel">Cancel</string>
+
+    <!-- App Picker -->
+    <string name="picker_title">Select Apps</string>
+    <string name="picker_search">Search apps…</string>
+    <string name="picker_done">Done</string>
+
+    <!-- Notifications -->
+    <string name="notif_monitoring_title">BePresent is active</string>
+    <string name="notif_monitoring_text">Monitoring your app usage</string>
+    <string name="notif_session_active">Focus session: %s remaining</string>
+    <string name="notif_session_goal_reached">Goal Reached! +%d XP</string>
+    <string name="notif_intention_open">%s — open for %d minutes</string>
+    <string name="notif_intention_closing">Closing %s in 30 seconds</string>
+    <string name="notif_intention_closed">%s time is up</string>
+
+    <!-- Permission Banner -->
+    <string name="permission_banner">BePresent can\'t monitor apps — tap to fix</string>
+
+    <!-- Duration labels -->
+    <string name="duration_minutes">%d min</string>
+    <string name="duration_hours_minutes">%1$dh %2$dm</string>
+</resources>
