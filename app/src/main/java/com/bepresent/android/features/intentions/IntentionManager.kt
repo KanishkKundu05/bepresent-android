@@ -6,6 +6,7 @@ import android.content.Context
 import android.content.Intent
 import com.bepresent.android.data.db.AppIntention
 import com.bepresent.android.data.db.AppIntentionDao
+import com.bepresent.android.data.db.PresentSessionDao
 import com.bepresent.android.service.IntentionAlarmReceiver
 import com.bepresent.android.service.MonitoringService
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -17,7 +18,8 @@ import javax.inject.Singleton
 @Singleton
 class IntentionManager @Inject constructor(
     @ApplicationContext private val context: Context,
-    private val intentionDao: AppIntentionDao
+    private val intentionDao: AppIntentionDao,
+    private val sessionDao: PresentSessionDao
 ) {
     fun observeAll(): Flow<List<AppIntention>> = intentionDao.getAll()
 
@@ -56,10 +58,7 @@ class IntentionManager @Inject constructor(
         intentionDao.delete(intention)
 
         // Stop service if no more intentions and no active session
-        if (intentionDao.getCount() == 0) {
-            // Service will check if it should stop
-            MonitoringService.checkAndStop(context)
-        }
+        MonitoringService.checkAndStop(context, sessionDao, intentionDao)
     }
 
     suspend fun openApp(intentionId: String) {

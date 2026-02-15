@@ -5,6 +5,7 @@ import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import com.bepresent.android.data.datastore.PreferencesManager
+import com.bepresent.android.data.db.AppIntentionDao
 import com.bepresent.android.data.db.PresentSession
 import com.bepresent.android.data.db.PresentSessionAction
 import com.bepresent.android.data.db.PresentSessionDao
@@ -21,6 +22,7 @@ import javax.inject.Singleton
 class SessionManager @Inject constructor(
     @ApplicationContext private val context: Context,
     private val sessionDao: PresentSessionDao,
+    private val intentionDao: AppIntentionDao,
     private val preferencesManager: PreferencesManager
 ) {
     fun observeActiveSession(): Flow<PresentSession?> = sessionDao.observeActiveSession()
@@ -81,7 +83,7 @@ class SessionManager @Inject constructor(
             )
             cancelGoalAlarm(sessionId)
             preferencesManager.setActiveSessionId(null)
-            MonitoringService.checkAndStop(context)
+            MonitoringService.checkAndStop(context, sessionDao, intentionDao)
             return true
         }
         return false
@@ -102,7 +104,7 @@ class SessionManager @Inject constructor(
             )
             cancelGoalAlarm(sessionId)
             preferencesManager.setActiveSessionId(null)
-            MonitoringService.checkAndStop(context)
+            MonitoringService.checkAndStop(context, sessionDao, intentionDao)
             return true
         }
         return false
@@ -150,7 +152,7 @@ class SessionManager @Inject constructor(
             )
             preferencesManager.addXpAndCoins(xp, coins)
             preferencesManager.setActiveSessionId(null)
-            MonitoringService.checkAndStop(context)
+            MonitoringService.checkAndStop(context, sessionDao, intentionDao)
             return true
         }
         return false

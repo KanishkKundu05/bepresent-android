@@ -186,11 +186,14 @@ class MonitoringService : Service() {
             context.stopService(Intent(context, MonitoringService::class.java))
         }
 
-        fun checkAndStop(context: Context) {
-            // Service will self-check if it needs to keep running
-            // For now, we just stop if explicitly called
-            // The service can be restarted if needed
-            stop(context)
+        fun checkAndStop(context: Context, sessionDao: PresentSessionDao, intentionDao: AppIntentionDao) {
+            CoroutineScope(Dispatchers.IO).launch {
+                val hasActiveSession = sessionDao.getActiveSession() != null
+                val intentionCount = intentionDao.getCount()
+                if (!hasActiveSession && intentionCount == 0) {
+                    stop(context)
+                }
+            }
         }
     }
 }
