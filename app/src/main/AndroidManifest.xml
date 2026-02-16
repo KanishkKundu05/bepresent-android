@@ -25,6 +25,9 @@
     <!-- Restart on boot -->
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
 
+    <!-- Network for cloud sync -->
+    <uses-permission android:name="android.permission.INTERNET" />
+
     <!-- Exact alarms for intention re-block + session goal -->
     <uses-permission android:name="android.permission.USE_EXACT_ALARM" />
 
@@ -87,6 +90,22 @@
         <receiver
             android:name=".service.SessionAlarmReceiver"
             android:exported="false" />
+
+        <!-- Auth0 redirect activity for login callback -->
+        <activity
+            android:name="com.auth0.android.provider.RedirectActivity"
+            android:exported="true"
+            tools:node="replace">
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data
+                    android:host="${AUTH0_DOMAIN}"
+                    android:pathPrefix="/android/${applicationId}/callback"
+                    android:scheme="https" />
+            </intent-filter>
+        </activity>
 
         <!-- Daily reset worker initializer -->
         <provider
