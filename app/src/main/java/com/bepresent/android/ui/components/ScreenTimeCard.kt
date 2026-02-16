@@ -68,8 +68,7 @@ fun ScreenTimeCard(
                     progress = { (totalScreenTimeMs.toFloat() / MAX_SCREEN_TIME_MS).coerceIn(0f, 1f) },
                     modifier = Modifier.size(120.dp),
                     strokeWidth = 10.dp,
-                    strokeCap = StrokeCap.Round,
-                    trackColor = MaterialTheme.colorScheme.surfaceVariant
+                    color = MaterialTheme.colorScheme.primary
                 )
                 Text(
                     text = formatDuration(totalScreenTimeMs),
