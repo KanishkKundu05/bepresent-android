@@ -1,6 +1,7 @@
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
+    kotlin("plugin.serialization") version "1.9.22"
     id("com.google.dagger.hilt.android")
     id("com.google.devtools.ksp")
 }
@@ -25,6 +26,10 @@ android {
         ksp {
             arg("room.schemaLocation", "$projectDir/schemas")
         }
+
+        buildConfigField("String", "CONVEX_URL", "\"${project.findProperty("CONVEX_URL") ?: ""}\"")
+        buildConfigField("String", "AUTH0_CLIENT_ID", "\"${project.findProperty("AUTH0_CLIENT_ID") ?: ""}\"")
+        buildConfigField("String", "AUTH0_DOMAIN", "\"${project.findProperty("AUTH0_DOMAIN") ?: ""}\"")
     }
 
     buildTypes {
@@ -52,6 +57,7 @@ android {
 
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 
     composeOptions {
@@ -111,6 +117,13 @@ dependencies {
 
     // JSON
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.2")
+
+    // Navigation
+    implementation("androidx.navigation:navigation-compose:2.7.6")
+
+    // Convex
+    implementation("dev.convex:android-convexmobile:0.4.1")
+    implementation("dev.convex:android-convex-auth0:0.2.1")
 
     // Testing
     testImplementation("junit:junit:4.13.2")
