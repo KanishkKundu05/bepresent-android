@@ -5,6 +5,7 @@ import androidx.room.Room
 import com.bepresent.android.data.db.AppIntentionDao
 import com.bepresent.android.data.db.BePresentDatabase
 import com.bepresent.android.data.db.PresentSessionDao
+import com.bepresent.android.data.db.SyncQueueDao
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -23,7 +24,9 @@ object AppModule {
             context,
             BePresentDatabase::class.java,
             "bepresent.db"
-        ).build()
+        )
+            .addMigrations(BePresentDatabase.MIGRATION_1_2)
+            .build()
     }
 
     @Provides
@@ -34,5 +37,10 @@ object AppModule {
     @Provides
     fun providePresentSessionDao(database: BePresentDatabase): PresentSessionDao {
         return database.presentSessionDao()
+    }
+
+    @Provides
+    fun provideSyncQueueDao(database: BePresentDatabase): SyncQueueDao {
+        return database.syncQueueDao()
     }
 }

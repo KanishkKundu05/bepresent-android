@@ -7,6 +7,7 @@ import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
+import com.bepresent.android.data.convex.SyncManager
 import com.bepresent.android.data.datastore.PreferencesManager
 import com.bepresent.android.data.db.AppIntentionDao
 import dagger.assisted.Assisted
@@ -23,7 +24,8 @@ class DailyResetWorker @AssistedInject constructor(
     @Assisted appContext: Context,
     @Assisted params: WorkerParameters,
     private val intentionDao: AppIntentionDao,
-    private val preferencesManager: PreferencesManager
+    private val preferencesManager: PreferencesManager,
+    private val syncManager: SyncManager
 ) : CoroutineWorker(appContext, params) {
 
     override suspend fun doWork(): Result {
@@ -74,6 +76,14 @@ class DailyResetWorker @AssistedInject constructor(
         // Consume freeze after loop if it was activated
         if (freezeActive) {
             preferencesManager.setStreakFreezeAvailable(false)
+        }
+
+        // Enqueue sync of yesterday's stats and current intentions
+        try {
+            syncManager.enqueueDailyStatsSync(LocalDate.now().minusDays(1))
+            syncManager.enqueueIntentionsSync()
+        } catch (_: Exception) {
+            // Sync failure should not break daily reset
         }
 
         return Result.success()

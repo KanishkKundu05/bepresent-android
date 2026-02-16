@@ -25,4 +25,13 @@ interface PresentSessionDao {
 
     @Insert
     suspend fun insertAction(action: PresentSessionAction)
+
+    @Query(
+        """
+        SELECT * FROM present_sessions
+        WHERE state IN ('completed', 'gaveUp')
+        AND startedAt >= :dayStartMs AND startedAt < :dayEndMs
+        """
+    )
+    suspend fun getCompletedSessionsForDate(dayStartMs: Long, dayEndMs: Long): List<PresentSession>
 }
