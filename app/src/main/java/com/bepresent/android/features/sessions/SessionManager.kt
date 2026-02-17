@@ -1,9 +1,6 @@
 package com.bepresent.android.features.sessions
 
-import android.app.AlarmManager
-import android.app.PendingIntent
 import android.content.Context
-import android.content.Intent
 import com.bepresent.android.data.convex.SyncManager
 import com.bepresent.android.data.convex.SyncWorker
 import com.bepresent.android.data.datastore.PreferencesManager
@@ -12,7 +9,6 @@ import com.bepresent.android.data.db.PresentSession
 import com.bepresent.android.data.db.PresentSessionAction
 import com.bepresent.android.data.db.PresentSessionDao
 import com.bepresent.android.service.MonitoringService
-import com.bepresent.android.service.SessionAlarmReceiver
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.Flow
 import org.json.JSONArray
@@ -26,7 +22,8 @@ class SessionManager @Inject constructor(
     private val sessionDao: PresentSessionDao,
     private val intentionDao: AppIntentionDao,
     private val preferencesManager: PreferencesManager,
-    private val syncManager: SyncManager
+    private val syncManager: SyncManager,
+    private val sessionAlarmScheduler: SessionAlarmScheduler
 ) {
     fun observeActiveSession(): Flow<PresentSession?> = sessionDao.observeActiveSession()
 
@@ -61,109 +58,23 @@ class SessionManager @Inject constructor(
             )
         )
         preferencesManager.setActiveSessionId(id)
-
-        // Schedule goal reached alarm
-        scheduleGoalAlarm(id, now + (goalDurationMinutes * 60 * 1000L))
-
-        // Start monitoring service
+        sessionAlarmScheduler.scheduleGoalAlarm(id, now + (goalDurationMinutes * 60 * 1000L))
         MonitoringService.start(context)
 
         return session
     }
 
-    suspend fun cancel(sessionId: String): Boolean {
-        val session = sessionDao.getById(sessionId) ?: return false
-        val result = SessionStateMachine.cancel(session)
-        if (result is SessionStateMachine.TransitionResult.Success) {
-            val updated = session.copy(state = result.newState, endedAt = System.currentTimeMillis())
-            sessionDao.upsert(updated)
-            sessionDao.insertAction(
-                PresentSessionAction(
-                    id = UUID.randomUUID().toString(),
-                    sessionId = sessionId,
-                    action = PresentSessionAction.ACTION_CANCEL
-                )
-            )
-            cancelGoalAlarm(sessionId)
-            preferencesManager.setActiveSessionId(null)
-            MonitoringService.checkAndStop(context, sessionDao, intentionDao)
-            return true
-        }
-        return false
-    }
+    suspend fun cancel(sessionId: String): Boolean =
+        applyTransition(sessionId, SessionStateMachine::cancel)
 
-    suspend fun giveUp(sessionId: String): Boolean {
-        val session = sessionDao.getById(sessionId) ?: return false
-        val result = SessionStateMachine.giveUp(session)
-        if (result is SessionStateMachine.TransitionResult.Success) {
-            val updated = session.copy(state = result.newState, endedAt = System.currentTimeMillis())
-            sessionDao.upsert(updated)
-            sessionDao.insertAction(
-                PresentSessionAction(
-                    id = UUID.randomUUID().toString(),
-                    sessionId = sessionId,
-                    action = PresentSessionAction.ACTION_GIVE_UP
-                )
-            )
-            cancelGoalAlarm(sessionId)
-            preferencesManager.setActiveSessionId(null)
-            MonitoringService.checkAndStop(context, sessionDao, intentionDao)
-            syncManager.enqueueSessionSync(updated)
-            SyncWorker.triggerImmediateSync(context)
-            return true
-        }
-        return false
-    }
+    suspend fun giveUp(sessionId: String): Boolean =
+        applyTransition(sessionId, SessionStateMachine::giveUp)
 
-    suspend fun goalReached(sessionId: String): Boolean {
-        val session = sessionDao.getById(sessionId) ?: return false
-        val result = SessionStateMachine.goalReached(session)
-        if (result is SessionStateMachine.TransitionResult.Success) {
-            val updated = session.copy(
-                state = result.newState,
-                goalReachedAt = System.currentTimeMillis()
-            )
-            sessionDao.upsert(updated)
-            sessionDao.insertAction(
-                PresentSessionAction(
-                    id = UUID.randomUUID().toString(),
-                    sessionId = sessionId,
-                    action = PresentSessionAction.ACTION_GOAL_REACHED
-                )
-            )
-            return true
-        }
-        return false
-    }
+    suspend fun goalReached(sessionId: String): Boolean =
+        applyTransition(sessionId, SessionStateMachine::goalReached)
 
-    suspend fun complete(sessionId: String): Boolean {
-        val session = sessionDao.getById(sessionId) ?: return false
-        val result = SessionStateMachine.complete(session)
-        if (result is SessionStateMachine.TransitionResult.Success) {
-            val (xp, coins) = SessionStateMachine.calculateRewards(session.goalDurationMinutes)
-            val updated = session.copy(
-                state = result.newState,
-                endedAt = System.currentTimeMillis(),
-                earnedXp = xp,
-                earnedCoins = coins
-            )
-            sessionDao.upsert(updated)
-            sessionDao.insertAction(
-                PresentSessionAction(
-                    id = UUID.randomUUID().toString(),
-                    sessionId = sessionId,
-                    action = PresentSessionAction.ACTION_COMPLETE
-                )
-            )
-            preferencesManager.addXpAndCoins(xp, coins)
-            preferencesManager.setActiveSessionId(null)
-            MonitoringService.checkAndStop(context, sessionDao, intentionDao)
-            syncManager.enqueueSessionSync(updated)
-            SyncWorker.triggerImmediateSync(context)
-            return true
-        }
-        return false
-    }
+    suspend fun complete(sessionId: String): Boolean =
+        applyTransition(sessionId, SessionStateMachine::complete)
 
     fun getBlockedPackagesFromJson(json: String): Set<String> {
         return try {
@@ -174,31 +85,57 @@ class SessionManager @Inject constructor(
         }
     }
 
-    private fun scheduleGoalAlarm(sessionId: String, triggerTime: Long) {
-        val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
-        val intent = Intent(context, SessionAlarmReceiver::class.java).apply {
-            action = SessionAlarmReceiver.ACTION_GOAL_REACHED
-            putExtra(SessionAlarmReceiver.EXTRA_SESSION_ID, sessionId)
-        }
-        val pending = PendingIntent.getBroadcast(
-            context,
-            sessionId.hashCode(),
-            intent,
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-        )
-        alarmManager.setAlarmClock(
-            AlarmManager.AlarmClockInfo(triggerTime, null),
-            pending
-        )
-    }
+    private suspend fun applyTransition(
+        sessionId: String,
+        transitionFn: (PresentSession) -> SessionStateMachine.TransitionResult
+    ): Boolean {
+        val session = sessionDao.getById(sessionId) ?: return false
+        val result = transitionFn(session)
+        if (result !is SessionStateMachine.TransitionResult.Success) return false
 
-    private fun cancelGoalAlarm(sessionId: String) {
-        val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
-        val intent = Intent(context, SessionAlarmReceiver::class.java)
-        val pending = PendingIntent.getBroadcast(
-            context, sessionId.hashCode(), intent,
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        val transition = result.transition
+        val now = System.currentTimeMillis()
+        val rewards = if (transition.rewardsEligible) {
+            SessionStateMachine.calculateRewards(session.goalDurationMinutes)
+        } else {
+            null
+        }
+
+        val updated = session.copy(
+            state = transition.newState,
+            endedAt = if (transition.setEndedAt) now else session.endedAt,
+            goalReachedAt = if (transition.setGoalReachedAt) now else session.goalReachedAt,
+            earnedXp = rewards?.first ?: session.earnedXp,
+            earnedCoins = rewards?.second ?: session.earnedCoins
         )
-        alarmManager.cancel(pending)
+
+        sessionDao.upsert(updated)
+        sessionDao.insertAction(
+            PresentSessionAction(
+                id = UUID.randomUUID().toString(),
+                sessionId = sessionId,
+                action = transition.action
+            )
+        )
+
+        if (transition.cancelAlarm) {
+            sessionAlarmScheduler.cancelGoalAlarm(sessionId)
+        }
+
+        if (transition.rewardsEligible && rewards != null) {
+            preferencesManager.addXpAndCoins(rewards.first, rewards.second)
+        }
+
+        if (transition.clearActiveSession) {
+            preferencesManager.setActiveSessionId(null)
+            MonitoringService.checkAndStop(context, sessionDao, intentionDao)
+        }
+
+        if (transition.syncAfter) {
+            syncManager.enqueueSessionSync(updated)
+            SyncWorker.triggerImmediateSync(context)
+        }
+
+        return true
     }
 }
