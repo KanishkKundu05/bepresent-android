@@ -25,7 +25,7 @@ class AuthViewModel @Inject constructor(
             // After successful login, upsert user in Convex
             if (convexManager.isAuthenticated) {
                 try {
-                    convexManager.client.mutation<String>("users:store")
+                    convexManager.client?.mutation<String>("users:store")
                 } catch (_: Exception) {
                     // Non-critical: user store can be retried
                 }
@@ -44,7 +44,7 @@ class AuthViewModel @Inject constructor(
             convexManager.loginFromCache()
             if (convexManager.isAuthenticated) {
                 try {
-                    convexManager.client.mutation<String>("users:store")
+                    convexManager.client?.mutation<String>("users:store")
                 } catch (_: Exception) {}
             }
         }

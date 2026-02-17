@@ -51,8 +51,9 @@ class PartnerViewModel @Inject constructor(
     private fun subscribeToPartnerStats() {
         viewModelScope.launch {
             if (!convexManager.isAuthenticated) return@launch
+            val client = convexManager.client ?: return@launch
             try {
-                convexManager.client.subscribe<Map<String, Any?>>(
+                client.subscribe<Map<String, Any?>>(
                     "partners:getPartnerStats",
                     args = mapOf("partnerId" to partnerId)
                 ).collect { result ->

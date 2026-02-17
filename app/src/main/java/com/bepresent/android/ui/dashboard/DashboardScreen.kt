@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Build
 import androidx.compose.material.icons.filled.Leaderboard
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.Card
@@ -51,7 +52,8 @@ import com.bepresent.android.ui.session.SessionConfigSheet
 fun DashboardScreen(
     viewModel: DashboardViewModel,
     onProfileClick: () -> Unit = {},
-    onLeaderboardClick: () -> Unit = {}
+    onLeaderboardClick: () -> Unit = {},
+    onDevClick: () -> Unit = {}
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val context = LocalContext.current
@@ -91,6 +93,9 @@ fun DashboardScreen(
                             text = "\u2B50 ${uiState.totalXp}",
                             style = MaterialTheme.typography.titleSmall
                         )
+                        IconButton(onClick = onDevClick) {
+                            Icon(Icons.Default.Build, contentDescription = "Dev Tools")
+                        }
                         IconButton(onClick = onLeaderboardClick) {
                             Icon(Icons.Default.Leaderboard, contentDescription = "Leaderboard")
                         }

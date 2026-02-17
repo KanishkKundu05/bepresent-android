@@ -51,8 +51,9 @@ class ProfileViewModel @Inject constructor(
     private fun loadProfile() {
         viewModelScope.launch {
             if (!convexManager.isAuthenticated) return@launch
+            val client = convexManager.client ?: return@launch
             try {
-                convexManager.client.subscribe<Map<String, Any?>>("users:getMe")
+                client.subscribe<Map<String, Any?>>("users:getMe")
                     .collect { result ->
                         result.onSuccess { data ->
                             if (data != null) {
@@ -70,8 +71,9 @@ class ProfileViewModel @Inject constructor(
     private fun loadPartners() {
         viewModelScope.launch {
             if (!convexManager.isAuthenticated) return@launch
+            val client = convexManager.client ?: return@launch
             try {
-                convexManager.client.subscribe<List<Map<String, Any?>>>("partners:getMyPartners")
+                client.subscribe<List<Map<String, Any?>>>("partners:getMyPartners")
                     .collect { result ->
                         result.onSuccess { list ->
                             _partners.value = list.map { m ->
@@ -94,7 +96,7 @@ class ProfileViewModel @Inject constructor(
             convexManager.login()
             if (convexManager.isAuthenticated) {
                 try {
-                    convexManager.client.mutation<String>("users:store")
+                    convexManager.client?.mutation<String>("users:store")
                 } catch (_: Exception) {}
                 loadProfile()
                 loadPartners()
@@ -113,7 +115,7 @@ class ProfileViewModel @Inject constructor(
     fun updateDisplayName(name: String) {
         viewModelScope.launch {
             try {
-                convexManager.client.mutation<Unit>(
+                convexManager.client?.mutation<Unit>(
                     "users:updateDisplayName",
                     args = mapOf("displayName" to name)
                 )
@@ -124,7 +126,7 @@ class ProfileViewModel @Inject constructor(
     fun respondToRequest(partnershipId: String, accept: Boolean) {
         viewModelScope.launch {
             try {
-                convexManager.client.mutation<Unit>(
+                convexManager.client?.mutation<Unit>(
                     "partners:respondToRequest",
                     args = mapOf(
                         "partnershipId" to partnershipId,

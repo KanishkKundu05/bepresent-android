@@ -41,8 +41,9 @@ class LeaderboardViewModel @Inject constructor(
     private fun subscribeToGlobal() {
         viewModelScope.launch {
             if (!convexManager.isAuthenticated) return@launch
+            val client = convexManager.client ?: return@launch
             try {
-                convexManager.client.subscribe<List<Map<String, Any?>>>("leaderboard:getGlobal")
+                client.subscribe<List<Map<String, Any?>>>("leaderboard:getGlobal")
                     .collect { result ->
                         result.onSuccess { list ->
                             _globalLeaderboard.value = list.mapNotNull { it.toLeaderboardEntry() }
@@ -55,8 +56,9 @@ class LeaderboardViewModel @Inject constructor(
     private fun subscribeToFriends() {
         viewModelScope.launch {
             if (!convexManager.isAuthenticated) return@launch
+            val client = convexManager.client ?: return@launch
             try {
-                convexManager.client.subscribe<List<Map<String, Any?>>>("leaderboard:getFriends")
+                client.subscribe<List<Map<String, Any?>>>("leaderboard:getFriends")
                     .collect { result ->
                         result.onSuccess { list ->
                             _friendsLeaderboard.value = list.mapNotNull { it.toLeaderboardEntry() }

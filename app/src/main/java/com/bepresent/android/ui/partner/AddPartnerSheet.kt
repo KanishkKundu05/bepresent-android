@@ -77,7 +77,7 @@ fun AddPartnerSheet(
                         scope.launch {
                             isLoading = true
                             try {
-                                convexManager.client.mutation<Unit>(
+                                convexManager.client?.mutation<Unit>(
                                     "partners:sendRequest",
                                     args = mapOf("partnerId" to foundUser!!.first)
                                 )
@@ -105,7 +105,8 @@ fun AddPartnerSheet(
                             isLoading = true
                             error = null
                             try {
-                                val result = convexManager.client.subscribe<Map<String, Any?>>(
+                                val client = convexManager.client ?: return@launch
+                                val result = client.subscribe<Map<String, Any?>>(
                                     "partners:lookupByFriendCode",
                                     args = mapOf("code" to friendCode)
                                 )

@@ -21,18 +21,27 @@ sealed class AuthState {
 class ConvexManager @Inject constructor(
     @ApplicationContext private val context: Context
 ) {
-    private val auth0Provider = Auth0Provider(
-        context,
-        clientId = BuildConfig.AUTH0_CLIENT_ID,
-        domain = BuildConfig.AUTH0_DOMAIN,
-        scheme = "https",
-        enableCachedLogins = true
-    )
+    private val isConfigured: Boolean =
+        BuildConfig.AUTH0_DOMAIN.isNotBlank() &&
+        BuildConfig.AUTH0_CLIENT_ID.isNotBlank() &&
+        BuildConfig.CONVEX_URL.isNotBlank()
 
-    val client = ConvexClientWithAuth(
-        deploymentUrl = BuildConfig.CONVEX_URL,
-        authProvider = auth0Provider
-    )
+    private val auth0Provider: Auth0Provider? = if (isConfigured) {
+        Auth0Provider(
+            context,
+            clientId = BuildConfig.AUTH0_CLIENT_ID,
+            domain = BuildConfig.AUTH0_DOMAIN,
+            scheme = "https",
+            enableCachedLogins = true
+        )
+    } else null
+
+    val client = if (isConfigured && auth0Provider != null) {
+        ConvexClientWithAuth(
+            deploymentUrl = BuildConfig.CONVEX_URL,
+            authProvider = auth0Provider
+        )
+    } else null
 
     private val _authState = MutableStateFlow<AuthState>(AuthState.Unauthenticated)
     val authState: StateFlow<AuthState> = _authState
@@ -41,9 +50,10 @@ class ConvexManager @Inject constructor(
         get() = _authState.value is AuthState.Authenticated
 
     suspend fun login() {
+        val c = client ?: return
         _authState.value = AuthState.Loading
         try {
-            client.login(context)
+            c.login(context)
             _authState.value = AuthState.Authenticated
         } catch (e: Exception) {
             _authState.value = AuthState.Unauthenticated
@@ -51,16 +61,18 @@ class ConvexManager @Inject constructor(
     }
 
     suspend fun logout() {
+        val c = client ?: return
         try {
-            client.logout(context)
+            c.logout(context)
         } finally {
             _authState.value = AuthState.Unauthenticated
         }
     }
 
     suspend fun loginFromCache() {
+        val c = client ?: return
         try {
-            client.loginFromCache()
+            c.loginFromCache()
             _authState.value = AuthState.Authenticated
         } catch (e: Exception) {
             _authState.value = AuthState.Unauthenticated

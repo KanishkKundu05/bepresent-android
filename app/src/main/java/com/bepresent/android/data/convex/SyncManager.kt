@@ -101,7 +101,7 @@ class SyncManager @Inject constructor(
         syncQueueDao.deleteFailedItems()
 
         val items = syncQueueDao.getAll()
-        val client = convexManager.client
+        val client = convexManager.client ?: return
 
         for (item in items) {
             try {

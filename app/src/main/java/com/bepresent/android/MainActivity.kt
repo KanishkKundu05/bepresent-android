@@ -15,6 +15,7 @@ import androidx.navigation.navArgument
 import com.bepresent.android.data.datastore.PreferencesManager
 import com.bepresent.android.ui.dashboard.DashboardScreen
 import com.bepresent.android.ui.dashboard.DashboardViewModel
+import com.bepresent.android.ui.dev.DevScreen
 import com.bepresent.android.ui.leaderboard.LeaderboardScreen
 import com.bepresent.android.ui.onboarding.OnboardingScreen
 import com.bepresent.android.ui.partner.PartnerScreen
@@ -45,8 +46,12 @@ class MainActivity : ComponentActivity() {
                             DashboardScreen(
                                 viewModel = viewModel,
                                 onProfileClick = { navController.navigate("profile") },
-                                onLeaderboardClick = { navController.navigate("leaderboard") }
+                                onLeaderboardClick = { navController.navigate("leaderboard") },
+                                onDevClick = { navController.navigate("dev") }
                             )
+                        }
+                        composable("dev") {
+                            DevScreen(onBack = { navController.popBackStack() })
                         }
                         composable("profile") {
                             ProfileScreen(
