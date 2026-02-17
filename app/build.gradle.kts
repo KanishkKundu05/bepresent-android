@@ -30,6 +30,8 @@ android {
         buildConfigField("String", "CONVEX_URL", "\"${project.findProperty("CONVEX_URL") ?: ""}\"")
         buildConfigField("String", "AUTH0_CLIENT_ID", "\"${project.findProperty("AUTH0_CLIENT_ID") ?: ""}\"")
         buildConfigField("String", "AUTH0_DOMAIN", "\"${project.findProperty("AUTH0_DOMAIN") ?: ""}\"")
+
+        manifestPlaceholders["AUTH0_DOMAIN"] = project.findProperty("AUTH0_DOMAIN") ?: "placeholder.auth0.com"
     }
 
     buildTypes {
@@ -124,6 +126,7 @@ dependencies {
     // Convex
     implementation("dev.convex:android-convexmobile:0.4.1")
     implementation("dev.convex:android-convex-auth0:0.2.1")
+    implementation("com.auth0.android:auth0:2.9.2")
 
     // Testing
     testImplementation("junit:junit:4.13.2")

@@ -43,7 +43,7 @@ class ConvexManager @Inject constructor(
     suspend fun login() {
         _authState.value = AuthState.Loading
         try {
-            client.login()
+            client.login(context)
             _authState.value = AuthState.Authenticated
         } catch (e: Exception) {
             _authState.value = AuthState.Unauthenticated
@@ -52,7 +52,7 @@ class ConvexManager @Inject constructor(
 
     suspend fun logout() {
         try {
-            client.logout()
+            client.logout(context)
         } finally {
             _authState.value = AuthState.Unauthenticated
         }

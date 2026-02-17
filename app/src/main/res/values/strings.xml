@@ -84,7 +84,7 @@
     <string name="notif_monitoring_text">Monitoring your app usage</string>
     <string name="notif_session_active">Focus session: %s remaining</string>
     <string name="notif_session_goal_reached">Goal Reached! +%d XP</string>
-    <string name="notif_intention_open">%s — open for %d minutes</string>
+    <string name="notif_intention_open">%1$s — open for %2$d minutes</string>
     <string name="notif_intention_closing">Closing %s in 30 seconds</string>
     <string name="notif_intention_closed">%s time is up</string>
 
