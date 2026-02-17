@@ -65,7 +65,7 @@ fun ScreenTimeCard(
 
             Box(contentAlignment = Alignment.Center) {
                 CircularProgressIndicator(
-                    progress = { (totalScreenTimeMs.toFloat() / MAX_SCREEN_TIME_MS).coerceIn(0f, 1f) },
+                    progress = (totalScreenTimeMs.toFloat() / MAX_SCREEN_TIME_MS).coerceIn(0f, 1f),
                     modifier = Modifier.size(120.dp),
                     strokeWidth = 10.dp,
                     color = MaterialTheme.colorScheme.primary

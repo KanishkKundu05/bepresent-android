@@ -39,6 +39,7 @@ class MonitoringService : Service() {
     private var pollingJob: Job? = null
     private var lastBlockedPackage: String? = null
     private var lastBlockedTime: Long = 0
+    private var lastKnownForegroundPackage: String? = null
 
     override fun onBind(intent: Intent?): IBinder? = null
 
@@ -58,7 +59,13 @@ class MonitoringService : Service() {
         pollingJob = serviceScope.launch {
             while (isActive) {
                 try {
-                    val foregroundPackage = usageStatsRepository.detectForegroundApp()
+                    val detected = usageStatsRepository.detectForegroundApp()
+                    val foregroundPackage = if (detected != null) {
+                        lastKnownForegroundPackage = detected
+                        detected
+                    } else {
+                        lastKnownForegroundPackage
+                    }
                     if (foregroundPackage != null && foregroundPackage != packageName) {
                         val blockedPackages = getBlockedPackages()
                         if (foregroundPackage in blockedPackages) {
