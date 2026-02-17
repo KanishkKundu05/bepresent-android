@@ -3,6 +3,7 @@ package com.bepresent.android.features.blocking
 import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.OnBackPressedCallback
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import com.bepresent.android.data.db.AppIntentionDao
@@ -27,6 +28,12 @@ class BlockedAppActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
 
+        onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
+            override fun handleOnBackPressed() {
+                navigateHome()
+            }
+        })
+
         val blockedPackage = intent.getStringExtra(EXTRA_BLOCKED_PACKAGE) ?: run {
             finish()
             return
@@ -48,11 +55,6 @@ class BlockedAppActivity : ComponentActivity() {
                 )
             }
         }
-    }
-
-    @Deprecated("Use onBackPressedDispatcher")
-    override fun onBackPressed() {
-        navigateHome()
     }
 
     private fun navigateHome() {

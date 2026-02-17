@@ -47,7 +47,8 @@ private const val STEP_WELCOME = 0
 private const val STEP_USAGE_ACCESS = 1
 private const val STEP_NOTIFICATIONS = 2
 private const val STEP_BATTERY = 3
-private const val STEP_DONE = 4
+private const val STEP_OVERLAY = 4
+private const val STEP_DONE = 5
 
 @Composable
 fun OnboardingScreen(onComplete: () -> Unit) {
@@ -68,6 +69,7 @@ fun OnboardingScreen(onComplete: () -> Unit) {
     var usageGranted by remember { mutableStateOf(permissionManager.hasUsageStatsPermission()) }
     var notificationsGranted by remember { mutableStateOf(permissionManager.hasNotificationPermission()) }
     var batteryGranted by remember { mutableStateOf(permissionManager.isBatteryOptimizationDisabled()) }
+    var overlayGranted by remember { mutableStateOf(permissionManager.hasOverlayPermission()) }
 
     // Re-check permissions when resuming (user comes back from Settings)
     LaunchedEffect(lifecycleOwner) {
@@ -75,6 +77,7 @@ fun OnboardingScreen(onComplete: () -> Unit) {
             usageGranted = permissionManager.hasUsageStatsPermission()
             notificationsGranted = permissionManager.hasNotificationPermission()
             batteryGranted = permissionManager.isBatteryOptimizationDisabled()
+            overlayGranted = permissionManager.hasOverlayPermission()
         }
     }
 
@@ -143,13 +146,13 @@ fun OnboardingScreen(onComplete: () -> Unit) {
                         buttonText = if (batteryGranted) "Continue" else "Disable Battery Optimization",
                         onAction = {
                             if (batteryGranted) {
-                                currentStep = STEP_DONE
+                                currentStep = STEP_OVERLAY
                             } else {
                                 context.startActivity(permissionManager.getBatteryOptimizationIntent())
                             }
                         },
                         secondaryText = "Skip",
-                        onSecondary = { currentStep = STEP_DONE },
+                        onSecondary = { currentStep = STEP_OVERLAY },
                         extraContent = {
                             OemBatteryGuide.getInstructions()?.let { guide ->
                                 Spacer(modifier = Modifier.height(16.dp))
@@ -172,6 +175,21 @@ fun OnboardingScreen(onComplete: () -> Unit) {
                                 }
                             }
                         }
+                    )
+                    STEP_OVERLAY -> OnboardingPage(
+                        emoji = "\uD83D\uDDD4",
+                        title = "Display Over Apps",
+                        subtitle = "BePresent needs to display over other apps to show the shield when you open a blocked app",
+                        buttonText = if (overlayGranted) "Continue" else "Grant Permission",
+                        onAction = {
+                            if (overlayGranted) {
+                                currentStep = STEP_DONE
+                            } else {
+                                context.startActivity(permissionManager.getOverlayPermissionIntent())
+                            }
+                        },
+                        secondaryText = "Skip",
+                        onSecondary = { currentStep = STEP_DONE }
                     )
                     STEP_DONE -> OnboardingPage(
                         emoji = "\u2705",

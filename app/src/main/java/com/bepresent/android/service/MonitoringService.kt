@@ -1,6 +1,7 @@
 package com.bepresent.android.service
 
 import android.app.Notification
+import android.util.Log
 import android.app.PendingIntent
 import android.app.Service
 import android.content.Context
@@ -71,8 +72,8 @@ class MonitoringService : Service() {
                             }
                         }
                     }
-                } catch (_: Exception) {
-                    // Silently handle usage stats errors
+                } catch (e: Exception) {
+                    Log.e("MonitoringService", "Polling error", e)
                 }
                 delay(1000)
             }

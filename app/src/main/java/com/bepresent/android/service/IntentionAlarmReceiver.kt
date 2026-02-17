@@ -24,7 +24,7 @@ class IntentionAlarmReceiver : BroadcastReceiver() {
                     context.applicationContext,
                     BePresentDatabase::class.java,
                     "bepresent.db"
-                ).build()
+                ).fallbackToDestructiveMigration().build()
 
                 val dao = db.appIntentionDao()
                 val intention = dao.getById(intentionId)

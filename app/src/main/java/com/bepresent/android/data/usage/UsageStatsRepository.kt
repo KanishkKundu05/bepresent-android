@@ -41,17 +41,30 @@ class UsageStatsRepository @Inject constructor(
 
     fun detectForegroundApp(): String? {
         val endTime = System.currentTimeMillis()
-        val beginTime = endTime - 5000
+        val beginTime = endTime - 10_000
         val usageEvents = usageStatsManager.queryEvents(beginTime, endTime)
         var lastForegroundPackage: String? = null
         val event = UsageEvents.Event()
         while (usageEvents.hasNextEvent()) {
             usageEvents.getNextEvent(event)
-            if (event.eventType == UsageEvents.Event.MOVE_TO_FOREGROUND) {
+            if (event.eventType == UsageEvents.Event.MOVE_TO_FOREGROUND ||
+                event.eventType == UsageEvents.Event.ACTIVITY_RESUMED
+            ) {
                 lastForegroundPackage = event.packageName
             }
         }
-        return lastForegroundPackage
+        return lastForegroundPackage ?: getCurrentForegroundPackage()
+    }
+
+    private fun getCurrentForegroundPackage(): String? {
+        val now = System.currentTimeMillis()
+        val stats = usageStatsManager.queryUsageStats(
+            UsageStatsManager.INTERVAL_DAILY, now - 10_000, now
+        )
+        return stats
+            .filter { it.lastTimeUsed > now - 10_000 }
+            .maxByOrNull { it.lastTimeUsed }
+            ?.packageName
     }
 
     private fun getTodayRange(): Pair<Long, Long> {

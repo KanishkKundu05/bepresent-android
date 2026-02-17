@@ -20,7 +20,7 @@ class BootCompletedReceiver : BroadcastReceiver() {
                     context.applicationContext,
                     BePresentDatabase::class.java,
                     "bepresent.db"
-                ).build()
+                ).fallbackToDestructiveMigration().build()
 
                 val hasIntentions = db.appIntentionDao().getCount() > 0
                 val hasActiveSession = db.presentSessionDao().getActiveSession() != null

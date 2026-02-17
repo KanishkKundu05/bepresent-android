@@ -45,6 +45,16 @@ class PermissionManager @Inject constructor(
         }
     }
 
+    fun hasOverlayPermission(): Boolean {
+        return Settings.canDrawOverlays(context)
+    }
+
+    fun getOverlayPermissionIntent(): Intent {
+        return Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION).apply {
+            data = Uri.parse("package:${context.packageName}")
+        }
+    }
+
     fun getAppSettingsIntent(): Intent {
         return Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
             data = Uri.parse("package:${context.packageName}")
@@ -58,9 +68,10 @@ class PermissionManager @Inject constructor(
     data class PermissionStatus(
         val usageStats: Boolean,
         val notifications: Boolean,
-        val batteryOptimization: Boolean
+        val batteryOptimization: Boolean,
+        val overlay: Boolean
     ) {
-        val allGranted: Boolean get() = usageStats && notifications && batteryOptimization
+        val allGranted: Boolean get() = usageStats && notifications && batteryOptimization && overlay
         val criticalGranted: Boolean get() = usageStats // Usage stats is the only hard requirement
     }
 
@@ -68,7 +79,8 @@ class PermissionManager @Inject constructor(
         return PermissionStatus(
             usageStats = hasUsageStatsPermission(),
             notifications = hasNotificationPermission(),
-            batteryOptimization = isBatteryOptimizationDisabled()
+            batteryOptimization = isBatteryOptimizationDisabled(),
+            overlay = hasOverlayPermission()
         )
     }
 }
