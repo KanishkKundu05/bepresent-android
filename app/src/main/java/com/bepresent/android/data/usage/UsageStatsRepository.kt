@@ -3,6 +3,7 @@ package com.bepresent.android.data.usage
 import android.app.usage.UsageEvents
 import android.app.usage.UsageStatsManager
 import android.content.Context
+import android.util.Log
 import dagger.hilt.android.qualifiers.ApplicationContext
 import java.util.Calendar
 import javax.inject.Inject
@@ -44,16 +45,24 @@ class UsageStatsRepository @Inject constructor(
         val beginTime = endTime - 10_000
         val usageEvents = usageStatsManager.queryEvents(beginTime, endTime)
         var lastForegroundPackage: String? = null
+        var eventCount = 0
         val event = UsageEvents.Event()
         while (usageEvents.hasNextEvent()) {
             usageEvents.getNextEvent(event)
+            eventCount++
             if (event.eventType == UsageEvents.Event.MOVE_TO_FOREGROUND ||
                 event.eventType == UsageEvents.Event.ACTIVITY_RESUMED
             ) {
                 lastForegroundPackage = event.packageName
             }
         }
-        return lastForegroundPackage ?: getCurrentForegroundPackage()
+        val result = lastForegroundPackage ?: getCurrentForegroundPackage()
+        Log.d(TAG, "detectForeground: events=$eventCount fromEvents=$lastForegroundPackage result=$result")
+        return result
+    }
+
+    companion object {
+        private const val TAG = "BP_Usage"
     }
 
     private fun getCurrentForegroundPackage(): String? {

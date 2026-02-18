@@ -1,6 +1,7 @@
 package com.bepresent.android.features.sessions
 
 import android.content.Context
+import android.util.Log
 import com.bepresent.android.data.convex.SyncManager
 import com.bepresent.android.data.convex.SyncWorker
 import com.bepresent.android.data.datastore.PreferencesManager
@@ -38,6 +39,7 @@ class SessionManager @Inject constructor(
         val id = UUID.randomUUID().toString()
         val now = System.currentTimeMillis()
         val packagesJson = JSONArray(blockedPackages).toString()
+        Log.d(TAG, "createAndStart: name=$name duration=${goalDurationMinutes}m blocked=$blockedPackages json=$packagesJson")
 
         val session = PresentSession(
             id = id,
@@ -59,6 +61,7 @@ class SessionManager @Inject constructor(
         )
         preferencesManager.setActiveSessionId(id)
         sessionAlarmScheduler.scheduleGoalAlarm(id, now + (goalDurationMinutes * 60 * 1000L))
+        Log.d(TAG, "createAndStart: session saved, starting MonitoringService")
         MonitoringService.start(context)
 
         return session
@@ -79,10 +82,17 @@ class SessionManager @Inject constructor(
     fun getBlockedPackagesFromJson(json: String): Set<String> {
         return try {
             val array = JSONArray(json)
-            (0 until array.length()).map { array.getString(it) }.toSet()
+            val result = (0 until array.length()).map { array.getString(it) }.toSet()
+            Log.d(TAG, "parseBlockedJson: '$json' -> $result")
+            result
         } catch (e: Exception) {
+            Log.e(TAG, "parseBlockedJson FAILED for: '$json'", e)
             emptySet()
         }
+    }
+
+    companion object {
+        private const val TAG = "BP_Session"
     }
 
     private suspend fun applyTransition(

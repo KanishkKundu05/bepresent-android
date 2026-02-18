@@ -44,6 +44,7 @@ class MonitoringService : Service() {
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        Log.d(TAG, "onStartCommand called, starting foreground + polling")
         startForeground(NOTIFICATION_ID, createMonitoringNotification())
         startPolling()
         return START_STICKY
@@ -55,7 +56,11 @@ class MonitoringService : Service() {
     }
 
     private fun startPolling() {
-        if (pollingJob?.isActive == true) return
+        if (pollingJob?.isActive == true) {
+            Log.d(TAG, "startPolling: job already active, skipping")
+            return
+        }
+        Log.d(TAG, "startPolling: launching polling coroutine")
         pollingJob = serviceScope.launch {
             while (isActive) {
                 try {
@@ -66,21 +71,25 @@ class MonitoringService : Service() {
                     } else {
                         lastKnownForegroundPackage
                     }
+                    Log.d(TAG, "poll: detected=$detected foreground=$foregroundPackage")
                     if (foregroundPackage != null && foregroundPackage != packageName) {
                         val blockedPackages = getBlockedPackages()
+                        Log.d(TAG, "poll: blockedPackages=$blockedPackages")
                         if (foregroundPackage in blockedPackages) {
-                            // Debounce: don't re-launch shield for same app within 2 seconds
                             val now = System.currentTimeMillis()
                             if (foregroundPackage != lastBlockedPackage || now - lastBlockedTime > 2000) {
                                 lastBlockedPackage = foregroundPackage
                                 lastBlockedTime = now
                                 val shieldType = determineShieldType(foregroundPackage)
+                                Log.w(TAG, "BLOCKING $foregroundPackage shield=$shieldType")
                                 launchBlockedActivity(foregroundPackage, shieldType)
+                            } else {
+                                Log.d(TAG, "poll: debounced block for $foregroundPackage")
                             }
                         }
                     }
                 } catch (e: Exception) {
-                    Log.e("MonitoringService", "Polling error", e)
+                    Log.e(TAG, "Polling error", e)
                 }
                 delay(1000)
             }
@@ -88,7 +97,9 @@ class MonitoringService : Service() {
     }
 
     private suspend fun getBlockedPackages(): Set<String> {
-        val sessionBlocked = sessionDao.getActiveSession()?.let { session ->
+        val activeSession = sessionDao.getActiveSession()
+        val sessionBlocked = activeSession?.let { session ->
+            Log.d(TAG, "getBlocked: session=${session.id} state=${session.state} json=${session.blockedPackages}")
             sessionManager.getBlockedPackagesFromJson(session.blockedPackages)
         } ?: emptySet()
 
@@ -96,7 +107,11 @@ class MonitoringService : Service() {
             .map { it.packageName }
             .toSet()
 
-        return sessionBlocked + intentionBlocked
+        val combined = sessionBlocked + intentionBlocked
+        if (combined.isNotEmpty()) {
+            Log.d(TAG, "getBlocked: session=$sessionBlocked intention=$intentionBlocked")
+        }
+        return combined
     }
 
     private suspend fun determineShieldType(packageName: String): String {
@@ -116,6 +131,7 @@ class MonitoringService : Service() {
     }
 
     private fun launchBlockedActivity(packageName: String, shieldType: String) {
+        Log.w(TAG, "launchBlockedActivity: pkg=$packageName shield=$shieldType overlay=${android.provider.Settings.canDrawOverlays(this)}")
         val intent = Intent(this, BlockedAppActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or
                     Intent.FLAG_ACTIVITY_CLEAR_TOP or
@@ -183,6 +199,7 @@ class MonitoringService : Service() {
     }
 
     companion object {
+        private const val TAG = "BP_Monitor"
         const val NOTIFICATION_ID = 1001
 
         fun start(context: Context) {
