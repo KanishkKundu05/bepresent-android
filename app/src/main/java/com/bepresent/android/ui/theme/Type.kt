@@ -2,10 +2,23 @@ package com.bepresent.android.ui.theme
 
 import androidx.compose.material3.Typography
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.Font
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
+import com.bepresent.android.R
+
+private val BePresentFontFamily = FontFamily(
+    Font(R.font.fff_acid_grotesk_soft_vf, FontWeight.Normal),
+    Font(R.font.fff_acid_grotesk_soft_vf, FontWeight.Medium),
+    Font(R.font.fff_acid_grotesk_soft_vf, FontWeight.SemiBold),
+    Font(R.font.fff_acid_grotesk_soft_vf, FontWeight.Bold)
+)
 
 val Typography = Typography(
+    // Keep one expressive family across the app to mirror iOS.
+    // This is a variable font; we map common weights to the same file.
+    defaultFontFamily = BePresentFontFamily,
     displayLarge = TextStyle(
         fontWeight = FontWeight.Bold,
         fontSize = 57.sp,

@@ -26,6 +26,7 @@ class SessionManager @Inject constructor(
     private val sessionAlarmScheduler: SessionAlarmScheduler
 ) {
     fun observeActiveSession(): Flow<PresentSession?> = sessionDao.observeActiveSession()
+    fun observeAllSessions(): Flow<List<PresentSession>> = sessionDao.getAllSessions()
 
     suspend fun getActiveSession(): PresentSession? = sessionDao.getActiveSession()
 

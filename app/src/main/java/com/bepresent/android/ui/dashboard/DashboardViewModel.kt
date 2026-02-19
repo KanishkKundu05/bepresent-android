@@ -1,5 +1,6 @@
 package com.bepresent.android.ui.dashboard
 
+import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.bepresent.android.data.datastore.PreferencesManager
@@ -11,6 +12,12 @@ import com.bepresent.android.features.intentions.IntentionManager
 import com.bepresent.android.features.sessions.SessionManager
 import com.bepresent.android.permissions.PermissionManager
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
+import java.time.Instant
+import java.time.LocalDate
+import java.time.ZoneId
+import java.time.format.TextStyle
+import java.util.Locale
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -21,6 +28,14 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
+data class HomeCalendarDay(
+    val weekDay: String,
+    val dayNumber: String,
+    val isCurrentDay: Boolean,
+    val isEnabled: Boolean,
+    val isChecked: Boolean
+)
+
 data class DashboardUiState(
     val totalScreenTimeMs: Long = 0L,
     val perAppUsage: List<AppUsageInfo> = emptyList(),
@@ -29,11 +44,15 @@ data class DashboardUiState(
     val totalXp: Int = 0,
     val totalCoins: Int = 0,
     val maxStreak: Int = 0,
+    val blockedTodaySeconds: Long = 0L,
+    val dailyRecordSeconds: Long = 0L,
+    val weekCalendar: List<HomeCalendarDay> = emptyList(),
     val permissionsOk: Boolean = true
 )
 
 @HiltViewModel
 class DashboardViewModel @Inject constructor(
+    @ApplicationContext private val context: Context,
     private val usageStatsRepository: UsageStatsRepository,
     private val intentionManager: IntentionManager,
     private val sessionManager: SessionManager,
@@ -43,12 +62,20 @@ class DashboardViewModel @Inject constructor(
 
     private val _screenTime = MutableStateFlow(0L)
     private val _perAppUsage = MutableStateFlow<List<AppUsageInfo>>(emptyList())
+    private val zoneId = ZoneId.systemDefault()
+    private val installDate: LocalDate = run {
+        val firstInstallMs = runCatching {
+            context.packageManager.getPackageInfo(context.packageName, 0).firstInstallTime
+        }.getOrNull() ?: System.currentTimeMillis()
+        Instant.ofEpochMilli(firstInstallMs).atZone(zoneId).toLocalDate()
+    }
 
     val uiState: StateFlow<DashboardUiState> = combine(
         _screenTime,
         _perAppUsage,
         intentionManager.observeAll(),
         sessionManager.observeActiveSession(),
+        sessionManager.observeAllSessions(),
         preferencesManager.totalXp,
         preferencesManager.totalCoins
     ) { values ->
@@ -58,8 +85,12 @@ class DashboardViewModel @Inject constructor(
         @Suppress("UNCHECKED_CAST")
         val intentions = values[2] as List<AppIntention>
         val session = values[3] as PresentSession?
-        val xp = values[4] as Int
-        val coins = values[5] as Int
+        @Suppress("UNCHECKED_CAST")
+        val allSessions = values[4] as List<PresentSession>
+        val xp = values[5] as Int
+        val coins = values[6] as Int
+        val blockedByDaySeconds = calculateBlockedSecondsByDay(allSessions)
+        val today = LocalDate.now()
 
         DashboardUiState(
             totalScreenTimeMs = screenTime,
@@ -69,6 +100,9 @@ class DashboardViewModel @Inject constructor(
             totalXp = xp,
             totalCoins = coins,
             maxStreak = intentions.maxOfOrNull { it.streak } ?: 0,
+            blockedTodaySeconds = blockedByDaySeconds[today] ?: 0L,
+            dailyRecordSeconds = blockedByDaySeconds.values.maxOrNull() ?: 0L,
+            weekCalendar = buildCalendarDays(blockedByDaySeconds, today),
             permissionsOk = permissionManager.checkAll().criticalGranted
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), DashboardUiState())
@@ -146,6 +180,39 @@ class DashboardViewModel @Inject constructor(
         viewModelScope.launch {
             val session = sessionManager.getActiveSession() ?: return@launch
             sessionManager.cancel(session.id)
+        }
+    }
+
+    private fun calculateBlockedSecondsByDay(sessions: List<PresentSession>): Map<LocalDate, Long> {
+        val perSession = sessions.asSequence()
+            .filter { it.state == PresentSession.STATE_COMPLETED || it.state == PresentSession.STATE_GAVE_UP }
+            .mapNotNull { session ->
+                val startedAt = session.startedAt ?: return@mapNotNull null
+                val endedAt = session.endedAt ?: return@mapNotNull null
+                if (endedAt <= startedAt) return@mapNotNull null
+                val date = Instant.ofEpochMilli(startedAt).atZone(zoneId).toLocalDate()
+                date to ((endedAt - startedAt) / 1000L)
+            }
+            .toList()
+
+        return perSession
+            .groupBy(keySelector = { it.first }, valueTransform = { it.second })
+            .mapValues { (_, durations) -> durations.sum() }
+    }
+
+    private fun buildCalendarDays(
+        blockedByDaySeconds: Map<LocalDate, Long>,
+        today: LocalDate
+    ): List<HomeCalendarDay> {
+        return (-3..3).map { offset ->
+            val day = today.plusDays(offset.toLong())
+            HomeCalendarDay(
+                weekDay = day.dayOfWeek.getDisplayName(TextStyle.SHORT, Locale.US),
+                dayNumber = day.dayOfMonth.toString(),
+                isCurrentDay = offset == 0,
+                isEnabled = !day.isBefore(installDate),
+                isChecked = (blockedByDaySeconds[day] ?: 0L) > 0L
+            )
         }
     }
 }
