@@ -12,13 +12,15 @@ permissions/
 
 ## PermissionManager
 
-Singleton class that checks and manages three critical permissions:
+Singleton class that checks and manages permissions needed by onboarding and runtime checks.
 
 ### Required Permissions
 
 | Permission | Purpose | Check Method |
 |------------|---------|--------------|
+| Overlay | Show blocking UI over distracting apps | `hasOverlayPermission()` |
 | Usage Stats | Monitor app usage, detect foreground apps | `hasUsageStatsPermission()` |
+| Accessibility | Detect active app for blocking flow | `hasAccessibilityPermission()` |
 | Notifications | Show session alerts and warnings | `hasNotificationPermission()` |
 | Battery Optimization | Keep monitoring service alive | `isBatteryOptimizationDisabled()` |
 
@@ -28,10 +30,12 @@ Singleton class that checks and manages three critical permissions:
 data class PermissionStatus(
     val usageStats: Boolean,
     val notifications: Boolean,
-    val batteryOptimization: Boolean
+    val batteryOptimization: Boolean,
+    val overlay: Boolean,
+    val accessibility: Boolean
 ) {
-    val allGranted: Boolean       // All three granted
-    val criticalGranted: Boolean  // Only usage stats (hard requirement)
+    val allGranted: Boolean       // All supported permissions granted
+    val criticalGranted: Boolean  // Overlay + usage + accessibility
 }
 ```
 
@@ -39,7 +43,9 @@ data class PermissionStatus(
 
 | Method | System Settings Intent |
 |--------|----------------------|
+| `getOverlayPermissionIntent()` | `ACTION_MANAGE_OVERLAY_PERMISSION` |
 | `getUsageAccessIntent()` | `ACTION_USAGE_ACCESS_SETTINGS` |
+| `getAccessibilitySettingsIntent()` | `ACTION_ACCESSIBILITY_SETTINGS` |
 | `getBatteryOptimizationIntent()` | `ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS` |
 | `getAppSettingsIntent()` | `ACTION_APPLICATION_DETAILS_SETTINGS` |
 

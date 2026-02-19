@@ -51,7 +51,8 @@ class MonitoringService : Service() {
         RuntimeLog.i(
             TAG,
             "onStartCommand: usage=${permissions.usageStats} overlay=${permissions.overlay} " +
-                "notif=${permissions.notifications} battery=${permissions.batteryOptimization}"
+                "a11y=${permissions.accessibility} notif=${permissions.notifications} " +
+                "battery=${permissions.batteryOptimization}"
         )
         startForeground(NOTIFICATION_ID, createMonitoringNotification())
         startPolling()

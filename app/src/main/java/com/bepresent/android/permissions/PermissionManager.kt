@@ -1,6 +1,7 @@
 package com.bepresent.android.permissions
 
 import android.app.AppOpsManager
+import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
@@ -8,6 +9,7 @@ import android.os.Build
 import android.os.PowerManager
 import android.provider.Settings
 import androidx.core.app.NotificationManagerCompat
+import com.bepresent.android.service.AccessibilityMonitorService
 import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -55,6 +57,32 @@ class PermissionManager @Inject constructor(
         }
     }
 
+    fun hasAccessibilityPermission(): Boolean {
+        val enabled =
+            Settings.Secure.getInt(context.contentResolver, Settings.Secure.ACCESSIBILITY_ENABLED, 0) == 1
+        if (!enabled) return false
+
+        val enabledServices = Settings.Secure.getString(
+            context.contentResolver,
+            Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES
+        ) ?: return false
+
+        val expectedService = ComponentName(
+            context,
+            AccessibilityMonitorService::class.java
+        )
+
+        return enabledServices.split(':').any { service ->
+            val enabledComponent = ComponentName.unflattenFromString(service) ?: return@any false
+            enabledComponent.packageName == expectedService.packageName &&
+                enabledComponent.className == expectedService.className
+        }
+    }
+
+    fun getAccessibilitySettingsIntent(): Intent {
+        return Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)
+    }
+
     fun getAppSettingsIntent(): Intent {
         return Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
             data = Uri.parse("package:${context.packageName}")
@@ -69,10 +97,14 @@ class PermissionManager @Inject constructor(
         val usageStats: Boolean,
         val notifications: Boolean,
         val batteryOptimization: Boolean,
-        val overlay: Boolean
+        val overlay: Boolean,
+        val accessibility: Boolean
     ) {
-        val allGranted: Boolean get() = usageStats && notifications && batteryOptimization && overlay
-        val criticalGranted: Boolean get() = usageStats // Usage stats is the only hard requirement
+        val allGranted: Boolean
+            get() = usageStats && notifications && batteryOptimization && overlay && accessibility
+
+        val criticalGranted: Boolean
+            get() = usageStats && overlay && accessibility
     }
 
     fun checkAll(): PermissionStatus {
@@ -80,7 +112,8 @@ class PermissionManager @Inject constructor(
             usageStats = hasUsageStatsPermission(),
             notifications = hasNotificationPermission(),
             batteryOptimization = isBatteryOptimizationDisabled(),
-            overlay = hasOverlayPermission()
+            overlay = hasOverlayPermission(),
+            accessibility = hasAccessibilityPermission()
         )
     }
 }

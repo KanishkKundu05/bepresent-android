@@ -75,6 +75,19 @@
                 android:value="App usage monitoring for digital wellbeing" />
         </service>
 
+        <!-- Accessibility service for foreground app detection -->
+        <service
+            android:name=".service.AccessibilityMonitorService"
+            android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.accessibilityservice.AccessibilityService" />
+            </intent-filter>
+            <meta-data
+                android:name="android.accessibilityservice"
+                android:resource="@xml/accessibility_service_config" />
+        </service>
+
         <!-- Boot completed receiver -->
         <receiver
             android:name=".service.BootCompletedReceiver"

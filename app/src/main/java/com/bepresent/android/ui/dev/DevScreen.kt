@@ -81,6 +81,7 @@ fun DevScreen(
                     PermissionRow("Notifications", state.permissions.notifications)
                     PermissionRow("Battery Opt", state.permissions.batteryOptimization)
                     PermissionRow("Overlay", state.permissions.overlay)
+                    PermissionRow("Accessibility", state.permissions.accessibility)
                 }
             }
 
