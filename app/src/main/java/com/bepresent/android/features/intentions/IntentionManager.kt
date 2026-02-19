@@ -1,6 +1,7 @@
 package com.bepresent.android.features.intentions
 
 import android.content.Context
+import com.bepresent.android.debug.RuntimeLog
 import com.bepresent.android.data.db.AppIntention
 import com.bepresent.android.data.db.AppIntentionDao
 import com.bepresent.android.data.db.PresentSessionDao
@@ -33,6 +34,10 @@ class IntentionManager @Inject constructor(
         allowedOpensPerDay: Int,
         timePerOpenMinutes: Int
     ): AppIntention {
+        RuntimeLog.i(
+            TAG,
+            "create: package=$packageName app=$appName allowed=$allowedOpensPerDay window=${timePerOpenMinutes}m"
+        )
         val intention = AppIntention(
             id = UUID.randomUUID().toString(),
             packageName = packageName,
@@ -46,10 +51,12 @@ class IntentionManager @Inject constructor(
     }
 
     suspend fun update(intention: AppIntention) {
+        RuntimeLog.i(TAG, "update: id=${intention.id} package=${intention.packageName}")
         intentionDao.upsert(intention)
     }
 
     suspend fun delete(intention: AppIntention) {
+        RuntimeLog.i(TAG, "delete: id=${intention.id} package=${intention.packageName}")
         // Cancel any active alarm for this intention
         intentionAlarmScheduler.cancelReblock(intention.id)
         intentionDao.delete(intention)
@@ -59,13 +66,21 @@ class IntentionManager @Inject constructor(
     }
 
     suspend fun openApp(intentionId: String) {
-        val intention = intentionDao.getById(intentionId) ?: return
+        val intention = intentionDao.getById(intentionId) ?: run {
+            RuntimeLog.w(TAG, "openApp: intention not found id=$intentionId")
+            return
+        }
+        RuntimeLog.i(
+            TAG,
+            "openApp: id=$intentionId opens=${intention.totalOpensToday}/${intention.allowedOpensPerDay} window=${intention.timePerOpenMinutes}m"
+        )
         intentionDao.incrementOpens(intentionId)
         intentionDao.setOpenState(intentionId, true, System.currentTimeMillis())
         intentionAlarmScheduler.scheduleReblock(intentionId, intention.timePerOpenMinutes)
     }
 
     suspend fun reblockApp(intentionId: String) {
+        RuntimeLog.i(TAG, "reblockApp: id=$intentionId")
         intentionDao.setOpenState(intentionId, false, null)
     }
 
@@ -76,6 +91,11 @@ class IntentionManager @Inject constructor(
     }
 
     private fun ensureMonitoringServiceRunning() {
+        RuntimeLog.d(TAG, "ensureMonitoringServiceRunning")
         MonitoringService.start(context)
+    }
+
+    companion object {
+        private const val TAG = "BP_Intention"
     }
 }

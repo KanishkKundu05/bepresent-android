@@ -4,6 +4,7 @@ import android.app.AlarmManager
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
+import com.bepresent.android.debug.RuntimeLog
 import com.bepresent.android.service.IntentionAlarmReceiver
 import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
@@ -16,6 +17,10 @@ class IntentionAlarmScheduler @Inject constructor(
     fun scheduleReblock(intentionId: String, minutes: Int) {
         val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
         val triggerTime = System.currentTimeMillis() + (minutes * 60 * 1000L)
+        RuntimeLog.i(
+            TAG,
+            "scheduleReblock: intentionId=$intentionId minutes=$minutes triggerAt=$triggerTime"
+        )
 
         val warningIntent = Intent(context, IntentionAlarmReceiver::class.java).apply {
             action = IntentionAlarmReceiver.ACTION_WARNING
@@ -43,6 +48,7 @@ class IntentionAlarmScheduler @Inject constructor(
     }
 
     fun cancelReblock(intentionId: String) {
+        RuntimeLog.i(TAG, "cancelReblock: intentionId=$intentionId")
         val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
 
         val warningIntent = Intent(context, IntentionAlarmReceiver::class.java)
@@ -62,5 +68,9 @@ class IntentionAlarmScheduler @Inject constructor(
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
         alarmManager.cancel(reblockPending)
+    }
+
+    companion object {
+        private const val TAG = "BP_IntAlarmSched"
     }
 }

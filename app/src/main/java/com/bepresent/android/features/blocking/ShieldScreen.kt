@@ -26,6 +26,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.bepresent.android.debug.RuntimeLog
 import com.bepresent.android.data.datastore.PreferencesManager
 import com.bepresent.android.data.db.AppIntention
 import com.bepresent.android.data.db.AppIntentionDao
@@ -48,6 +49,10 @@ fun ShieldScreen(
     onNavigateHome: () -> Unit,
     onFinish: () -> Unit
 ) {
+    LaunchedEffect(blockedPackage, shieldType) {
+        RuntimeLog.i(TAG, "ShieldScreen: package=$blockedPackage shieldType=$shieldType")
+    }
+
     when (shieldType) {
         BlockedAppActivity.SHIELD_SESSION -> SessionShield(
             sessionDao = sessionDao,
@@ -65,6 +70,11 @@ fun ShieldScreen(
             onNavigateHome = onNavigateHome,
             onFinish = onFinish
         )
+        else -> UnknownShield(
+            blockedPackage = blockedPackage,
+            shieldType = shieldType,
+            onNavigateHome = onNavigateHome
+        )
     }
 }
 
@@ -77,6 +87,7 @@ private fun SessionShield(
 
     LaunchedEffect(Unit) {
         session = sessionDao.getActiveSession()
+        RuntimeLog.i(TAG, "SessionShield: activeSession=${session?.id} state=${session?.state}")
     }
 
     Surface(
@@ -108,7 +119,10 @@ private fun SessionShield(
             }
             Spacer(modifier = Modifier.height(32.dp))
             Button(
-                onClick = onNavigateHome,
+                onClick = {
+                    RuntimeLog.d(TAG, "SessionShield: Nevermind -> navigate home")
+                    onNavigateHome()
+                },
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(56.dp)
@@ -152,6 +166,7 @@ private fun GoalReachedShield(
 
     LaunchedEffect(Unit) {
         session = sessionDao.getActiveSession()
+        RuntimeLog.i(TAG, "GoalReachedShield: activeSession=${session?.id} state=${session?.state}")
     }
 
     Surface(
@@ -186,6 +201,7 @@ private fun GoalReachedShield(
             Button(
                 onClick = {
                     session?.let { s ->
+                        RuntimeLog.i(TAG, "GoalReachedShield: complete session=${s.id}")
                         scope.launch {
                             sessionManager.complete(s.id)
                             onNavigateHome()
@@ -220,9 +236,21 @@ private fun IntentionShield(
 
     LaunchedEffect(blockedPackage) {
         intention = intentionManager.getByPackage(blockedPackage)
+        RuntimeLog.i(
+            TAG,
+            "IntentionShield: lookup package=$blockedPackage found=${intention != null}"
+        )
     }
 
-    val currentIntention = intention ?: return
+    val currentIntention = intention
+    if (currentIntention == null) {
+        RuntimeLog.w(TAG, "IntentionShield: no intention found for package=$blockedPackage")
+        MissingIntentionShield(
+            blockedPackage = blockedPackage,
+            onNavigateHome = onNavigateHome
+        )
+        return
+    }
 
     val isOverLimit = currentIntention.totalOpensToday >= currentIntention.allowedOpensPerDay
 
@@ -315,6 +343,10 @@ private fun IntentionShield(
             TextButton(
                 onClick = {
                     scope.launch {
+                        RuntimeLog.i(
+                            TAG,
+                            "IntentionShield: openApp intentionId=${currentIntention.id} overLimit=$isOverLimit"
+                        )
                         intentionManager.openApp(currentIntention.id)
                         onFinish()
                     }
@@ -335,3 +367,67 @@ private fun IntentionShield(
         }
     }
 }
+
+@Composable
+private fun UnknownShield(
+    blockedPackage: String,
+    shieldType: String,
+    onNavigateHome: () -> Unit
+) {
+    LaunchedEffect(blockedPackage, shieldType) {
+        RuntimeLog.w(TAG, "UnknownShield: package=$blockedPackage shieldType=$shieldType")
+    }
+    Surface(
+        modifier = Modifier.fillMaxSize(),
+        color = MaterialTheme.colorScheme.background
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(32.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            Text(
+                text = "Unknown shield type: $shieldType",
+                style = MaterialTheme.typography.bodyLarge,
+                textAlign = TextAlign.Center
+            )
+            Spacer(modifier = Modifier.height(16.dp))
+            Button(onClick = onNavigateHome) {
+                Text("Go Home")
+            }
+        }
+    }
+}
+
+@Composable
+private fun MissingIntentionShield(
+    blockedPackage: String,
+    onNavigateHome: () -> Unit
+) {
+    Surface(
+        modifier = Modifier.fillMaxSize(),
+        color = MaterialTheme.colorScheme.background
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(32.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            Text(
+                text = "Intention not found for $blockedPackage",
+                style = MaterialTheme.typography.bodyLarge,
+                textAlign = TextAlign.Center
+            )
+            Spacer(modifier = Modifier.height(16.dp))
+            Button(onClick = onNavigateHome) {
+                Text("Go Home")
+            }
+        }
+    }
+}
+
+private const val TAG = "BP_Shield"

@@ -1,7 +1,6 @@
 package com.bepresent.android.features.sessions
 
 import android.content.Context
-import android.util.Log
 import com.bepresent.android.data.convex.SyncManager
 import com.bepresent.android.data.convex.SyncWorker
 import com.bepresent.android.data.datastore.PreferencesManager
@@ -9,6 +8,7 @@ import com.bepresent.android.data.db.AppIntentionDao
 import com.bepresent.android.data.db.PresentSession
 import com.bepresent.android.data.db.PresentSessionAction
 import com.bepresent.android.data.db.PresentSessionDao
+import com.bepresent.android.debug.RuntimeLog
 import com.bepresent.android.service.MonitoringService
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.Flow
@@ -39,7 +39,10 @@ class SessionManager @Inject constructor(
         val id = UUID.randomUUID().toString()
         val now = System.currentTimeMillis()
         val packagesJson = JSONArray(blockedPackages).toString()
-        Log.d(TAG, "createAndStart: name=$name duration=${goalDurationMinutes}m blocked=$blockedPackages json=$packagesJson")
+        RuntimeLog.d(
+            TAG,
+            "createAndStart: name=$name duration=${goalDurationMinutes}m blocked=$blockedPackages json=$packagesJson"
+        )
 
         val session = PresentSession(
             id = id,
@@ -61,7 +64,7 @@ class SessionManager @Inject constructor(
         )
         preferencesManager.setActiveSessionId(id)
         sessionAlarmScheduler.scheduleGoalAlarm(id, now + (goalDurationMinutes * 60 * 1000L))
-        Log.d(TAG, "createAndStart: session saved, starting MonitoringService")
+        RuntimeLog.d(TAG, "createAndStart: session saved, starting MonitoringService")
         MonitoringService.start(context)
 
         return session
@@ -83,10 +86,10 @@ class SessionManager @Inject constructor(
         return try {
             val array = JSONArray(json)
             val result = (0 until array.length()).map { array.getString(it) }.toSet()
-            Log.d(TAG, "parseBlockedJson: '$json' -> $result")
+            RuntimeLog.d(TAG, "parseBlockedJson: '$json' -> $result")
             result
         } catch (e: Exception) {
-            Log.e(TAG, "parseBlockedJson FAILED for: '$json'", e)
+            RuntimeLog.e(TAG, "parseBlockedJson FAILED for: '$json'", e)
             emptySet()
         }
     }
@@ -100,8 +103,12 @@ class SessionManager @Inject constructor(
         transitionFn: (PresentSession) -> SessionStateMachine.TransitionResult
     ): Boolean {
         val session = sessionDao.getById(sessionId) ?: return false
+        RuntimeLog.d(TAG, "applyTransition: sessionId=$sessionId fromState=${session.state}")
         val result = transitionFn(session)
-        if (result !is SessionStateMachine.TransitionResult.Success) return false
+        if (result !is SessionStateMachine.TransitionResult.Success) {
+            RuntimeLog.w(TAG, "applyTransition rejected: sessionId=$sessionId state=${session.state}")
+            return false
+        }
 
         val transition = result.transition
         val now = System.currentTimeMillis()
@@ -146,6 +153,7 @@ class SessionManager @Inject constructor(
             SyncWorker.triggerImmediateSync(context)
         }
 
+        RuntimeLog.i(TAG, "applyTransition: sessionId=$sessionId toState=${updated.state}")
         return true
     }
 }

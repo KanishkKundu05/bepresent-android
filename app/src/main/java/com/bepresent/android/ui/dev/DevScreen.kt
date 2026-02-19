@@ -40,6 +40,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.bepresent.android.features.blocking.BlockedAppActivity
 import com.bepresent.android.data.db.AppIntention
 import com.bepresent.android.ui.picker.AppPickerSheet
 
@@ -107,6 +108,14 @@ fun DevScreen(
                 Button(onClick = { viewModel.startMonitoring() }) { Text("Start") }
                 OutlinedButton(onClick = { viewModel.stopMonitoring() }) { Text("Stop") }
             }
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedButton(
+                    onClick = { viewModel.launchTestShield(BlockedAppActivity.SHIELD_SESSION) }
+                ) { Text("Test Session Shield") }
+                OutlinedButton(
+                    onClick = { viewModel.launchTestShield(BlockedAppActivity.SHIELD_INTENTION) }
+                ) { Text("Test Intention Shield") }
+            }
             state.foregroundApp?.let {
                 Text("Foreground: $it", style = MaterialTheme.typography.bodySmall)
             }
@@ -126,6 +135,36 @@ fun DevScreen(
                     DataRow("Total Coins", state.totalCoins.toString())
                     DataRow("Streak Freeze", if (state.streakFreezeAvailable) "Available" else "Used")
                     DataRow("Active Session ID", state.activeSessionId ?: "none")
+                }
+            }
+
+            // --- Runtime logs ---
+            SectionHeader("Runtime Logs (${state.runtimeLogs.size})")
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedButton(onClick = { viewModel.clearRuntimeLogs() }) {
+                    Text("Clear Logs")
+                }
+            }
+            Card(modifier = Modifier.fillMaxWidth()) {
+                Column(
+                    modifier = Modifier.padding(12.dp),
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    if (state.runtimeLogs.isEmpty()) {
+                        Text(
+                            "No runtime logs yet",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    } else {
+                        state.runtimeLogs.takeLast(40).forEach { line ->
+                            Text(
+                                line,
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
                 }
             }
 

@@ -6,6 +6,7 @@ import android.content.Context
 import android.content.Intent
 import androidx.core.app.NotificationCompat
 import com.bepresent.android.BePresentApp
+import com.bepresent.android.debug.RuntimeLog
 import com.bepresent.android.data.db.BePresentDatabase
 import com.bepresent.android.data.usage.UsageStatsRepository
 import com.bepresent.android.features.blocking.BlockedAppActivity
@@ -16,6 +17,7 @@ import kotlinx.coroutines.launch
 class IntentionAlarmReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         val intentionId = intent.getStringExtra(EXTRA_INTENTION_ID) ?: return
+        RuntimeLog.i(TAG, "onReceive: action=${intent.action} intentionId=$intentionId")
         val pendingResult = goAsync()
 
         CoroutineScope(Dispatchers.IO).launch {
@@ -32,16 +34,20 @@ class IntentionAlarmReceiver : BroadcastReceiver() {
                 when (intent.action) {
                     ACTION_WARNING -> {
                         if (intention != null && intention.currentlyOpen) {
+                            RuntimeLog.i(TAG, "ACTION_WARNING: intention=${intention.id} app=${intention.appName}")
                             showNotification(
                                 context,
                                 "Closing ${intention.appName} in 30 seconds",
                                 "Your open window is almost over",
                                 intentionId.hashCode() + 100
                             )
+                        } else {
+                            RuntimeLog.d(TAG, "ACTION_WARNING skipped: intention missing or not open")
                         }
                     }
                     ACTION_REBLOCK -> {
                         if (intention != null) {
+                            RuntimeLog.i(TAG, "ACTION_REBLOCK: intention=${intention.id} app=${intention.appName}")
                             dao.setOpenState(intentionId, false, null)
                             showNotification(
                                 context,
@@ -61,8 +67,20 @@ class IntentionAlarmReceiver : BroadcastReceiver() {
                                     putExtra(BlockedAppActivity.EXTRA_BLOCKED_PACKAGE, intention.packageName)
                                     putExtra(BlockedAppActivity.EXTRA_SHIELD_TYPE, BlockedAppActivity.SHIELD_INTENTION)
                                 }
-                                context.startActivity(shieldIntent)
+                                try {
+                                    context.startActivity(shieldIntent)
+                                    RuntimeLog.i(TAG, "ACTION_REBLOCK: launched shield for ${intention.packageName}")
+                                } catch (t: Throwable) {
+                                    RuntimeLog.e(TAG, "ACTION_REBLOCK: failed to launch shield", t)
+                                }
+                            } else {
+                                RuntimeLog.d(
+                                    TAG,
+                                    "ACTION_REBLOCK: foreground=$foregroundApp does not match ${intention.packageName}"
+                                )
                             }
+                        } else {
+                            RuntimeLog.w(TAG, "ACTION_REBLOCK skipped: intention missing for id=$intentionId")
                         }
                     }
                 }
@@ -88,6 +106,7 @@ class IntentionAlarmReceiver : BroadcastReceiver() {
     }
 
     companion object {
+        private const val TAG = "BP_IntAlarm"
         const val ACTION_WARNING = "com.bepresent.android.INTENTION_WARNING"
         const val ACTION_REBLOCK = "com.bepresent.android.INTENTION_REBLOCK"
         const val EXTRA_INTENTION_ID = "intention_id"

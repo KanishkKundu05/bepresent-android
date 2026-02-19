@@ -1,7 +1,6 @@
 package com.bepresent.android.service
 
 import android.app.Notification
-import android.util.Log
 import android.app.PendingIntent
 import android.app.Service
 import android.content.Context
@@ -10,12 +9,14 @@ import android.os.IBinder
 import androidx.core.app.NotificationCompat
 import com.bepresent.android.BePresentApp
 import com.bepresent.android.MainActivity
+import com.bepresent.android.debug.RuntimeLog
 import com.bepresent.android.data.db.AppIntentionDao
 import com.bepresent.android.data.db.PresentSession
 import com.bepresent.android.data.db.PresentSessionDao
 import com.bepresent.android.data.usage.UsageStatsRepository
 import com.bepresent.android.features.blocking.BlockedAppActivity
 import com.bepresent.android.features.sessions.SessionManager
+import com.bepresent.android.permissions.PermissionManager
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -34,17 +35,24 @@ class MonitoringService : Service() {
     @Inject lateinit var intentionDao: AppIntentionDao
     @Inject lateinit var sessionDao: PresentSessionDao
     @Inject lateinit var sessionManager: SessionManager
+    @Inject lateinit var permissionManager: PermissionManager
 
     private val serviceScope = CoroutineScope(Dispatchers.Default + SupervisorJob())
     private var pollingJob: Job? = null
     private var lastBlockedPackage: String? = null
     private var lastBlockedTime: Long = 0
     private var lastKnownForegroundPackage: String? = null
+    private var lastDebugNotificationTime: Long = 0L
 
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        Log.d(TAG, "onStartCommand called, starting foreground + polling")
+        val permissions = permissionManager.checkAll()
+        RuntimeLog.i(
+            TAG,
+            "onStartCommand: usage=${permissions.usageStats} overlay=${permissions.overlay} " +
+                "notif=${permissions.notifications} battery=${permissions.batteryOptimization}"
+        )
         startForeground(NOTIFICATION_ID, createMonitoringNotification())
         startPolling()
         return START_STICKY
@@ -57,10 +65,10 @@ class MonitoringService : Service() {
 
     private fun startPolling() {
         if (pollingJob?.isActive == true) {
-            Log.d(TAG, "startPolling: job already active, skipping")
+            RuntimeLog.d(TAG, "startPolling: job already active, skipping")
             return
         }
-        Log.d(TAG, "startPolling: launching polling coroutine")
+        RuntimeLog.d(TAG, "startPolling: launching polling coroutine")
         pollingJob = serviceScope.launch {
             while (isActive) {
                 try {
@@ -71,25 +79,25 @@ class MonitoringService : Service() {
                     } else {
                         lastKnownForegroundPackage
                     }
-                    Log.d(TAG, "poll: detected=$detected foreground=$foregroundPackage")
+                    RuntimeLog.d(TAG, "poll: detected=$detected foreground=$foregroundPackage")
                     if (foregroundPackage != null && foregroundPackage != packageName) {
                         val blockedPackages = getBlockedPackages()
-                        Log.d(TAG, "poll: blockedPackages=$blockedPackages")
+                        RuntimeLog.d(TAG, "poll: blockedPackages=$blockedPackages")
                         if (foregroundPackage in blockedPackages) {
                             val now = System.currentTimeMillis()
                             if (foregroundPackage != lastBlockedPackage || now - lastBlockedTime > 2000) {
                                 lastBlockedPackage = foregroundPackage
                                 lastBlockedTime = now
                                 val shieldType = determineShieldType(foregroundPackage)
-                                Log.w(TAG, "BLOCKING $foregroundPackage shield=$shieldType")
+                                RuntimeLog.w(TAG, "BLOCKING $foregroundPackage shield=$shieldType")
                                 launchBlockedActivity(foregroundPackage, shieldType)
                             } else {
-                                Log.d(TAG, "poll: debounced block for $foregroundPackage")
+                                RuntimeLog.d(TAG, "poll: debounced block for $foregroundPackage")
                             }
                         }
                     }
                 } catch (e: Exception) {
-                    Log.e(TAG, "Polling error", e)
+                    RuntimeLog.e(TAG, "Polling error", e)
                 }
                 delay(1000)
             }
@@ -99,7 +107,10 @@ class MonitoringService : Service() {
     private suspend fun getBlockedPackages(): Set<String> {
         val activeSession = sessionDao.getActiveSession()
         val sessionBlocked = activeSession?.let { session ->
-            Log.d(TAG, "getBlocked: session=${session.id} state=${session.state} json=${session.blockedPackages}")
+            RuntimeLog.d(
+                TAG,
+                "getBlocked: session=${session.id} state=${session.state} json=${session.blockedPackages}"
+            )
             sessionManager.getBlockedPackagesFromJson(session.blockedPackages)
         } ?: emptySet()
 
@@ -109,7 +120,7 @@ class MonitoringService : Service() {
 
         val combined = sessionBlocked + intentionBlocked
         if (combined.isNotEmpty()) {
-            Log.d(TAG, "getBlocked: session=$sessionBlocked intention=$intentionBlocked")
+            RuntimeLog.d(TAG, "getBlocked: session=$sessionBlocked intention=$intentionBlocked")
         }
         return combined
     }
@@ -131,7 +142,11 @@ class MonitoringService : Service() {
     }
 
     private fun launchBlockedActivity(packageName: String, shieldType: String) {
-        Log.w(TAG, "launchBlockedActivity: pkg=$packageName shield=$shieldType overlay=${android.provider.Settings.canDrawOverlays(this)}")
+        val launchRequestedAt = System.currentTimeMillis()
+        RuntimeLog.w(
+            TAG,
+            "launchBlockedActivity: pkg=$packageName shield=$shieldType overlay=${android.provider.Settings.canDrawOverlays(this)}"
+        )
         val intent = Intent(this, BlockedAppActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or
                     Intent.FLAG_ACTIVITY_CLEAR_TOP or
@@ -139,7 +154,56 @@ class MonitoringService : Service() {
             putExtra(BlockedAppActivity.EXTRA_BLOCKED_PACKAGE, packageName)
             putExtra(BlockedAppActivity.EXTRA_SHIELD_TYPE, shieldType)
         }
-        startActivity(intent)
+        try {
+            startActivity(intent)
+            RuntimeLog.i(TAG, "launchBlockedActivity: startActivity requested")
+            serviceScope.launch {
+                delay(1200)
+                if (BlockedAppActivity.lastResumeAtMs < launchRequestedAt) {
+                    RuntimeLog.w(
+                        TAG,
+                        "Shield did not resume after launch request. Android may have blocked background activity start."
+                    )
+                    showShieldDebugNotification(packageName, shieldType)
+                }
+            }
+        } catch (t: Throwable) {
+            RuntimeLog.e(TAG, "launchBlockedActivity failed", t)
+            showShieldDebugNotification(packageName, shieldType)
+        }
+    }
+
+    private fun showShieldDebugNotification(packageName: String, shieldType: String) {
+        val now = System.currentTimeMillis()
+        if (now - lastDebugNotificationTime < 5000) return
+        lastDebugNotificationTime = now
+
+        val openShieldIntent = Intent(this, BlockedAppActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or
+                    Intent.FLAG_ACTIVITY_CLEAR_TOP or
+                    Intent.FLAG_ACTIVITY_SINGLE_TOP
+            putExtra(BlockedAppActivity.EXTRA_BLOCKED_PACKAGE, packageName)
+            putExtra(BlockedAppActivity.EXTRA_SHIELD_TYPE, shieldType)
+        }
+
+        val pendingIntent = PendingIntent.getActivity(
+            this,
+            (packageName + shieldType).hashCode(),
+            openShieldIntent,
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+        )
+
+        val notification = NotificationCompat.Builder(this, BePresentApp.CHANNEL_MONITORING)
+            .setContentTitle("Shield launch needs user tap")
+            .setContentText("Tap to open shield for ${packageName.substringAfterLast('.')}")
+            .setSmallIcon(android.R.drawable.ic_dialog_alert)
+            .setAutoCancel(true)
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setContentIntent(pendingIntent)
+            .build()
+
+        val manager = getSystemService(NOTIFICATION_SERVICE) as android.app.NotificationManager
+        manager.notify(DEBUG_NOTIFICATION_ID, notification)
     }
 
     private fun createMonitoringNotification(): Notification {
@@ -201,13 +265,16 @@ class MonitoringService : Service() {
     companion object {
         private const val TAG = "BP_Monitor"
         const val NOTIFICATION_ID = 1001
+        private const val DEBUG_NOTIFICATION_ID = 1002
 
         fun start(context: Context) {
+            RuntimeLog.i(TAG, "start() requested")
             val intent = Intent(context, MonitoringService::class.java)
             context.startForegroundService(intent)
         }
 
         fun stop(context: Context) {
+            RuntimeLog.i(TAG, "stop() requested")
             context.stopService(Intent(context, MonitoringService::class.java))
         }
 
@@ -215,6 +282,10 @@ class MonitoringService : Service() {
             CoroutineScope(Dispatchers.IO).launch {
                 val hasActiveSession = sessionDao.getActiveSession() != null
                 val intentionCount = intentionDao.getCount()
+                RuntimeLog.i(
+                    TAG,
+                    "checkAndStop: hasActiveSession=$hasActiveSession intentionCount=$intentionCount"
+                )
                 if (!hasActiveSession && intentionCount == 0) {
                     stop(context)
                 }

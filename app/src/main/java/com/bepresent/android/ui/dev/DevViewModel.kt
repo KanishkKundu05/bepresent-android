@@ -1,6 +1,7 @@
 package com.bepresent.android.ui.dev
 
 import android.app.Application
+import android.content.Intent
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.bepresent.android.data.datastore.PreferencesManager
@@ -9,12 +10,15 @@ import com.bepresent.android.data.db.AppIntentionDao
 import com.bepresent.android.data.db.PresentSession
 import com.bepresent.android.data.db.PresentSessionDao
 import com.bepresent.android.data.usage.UsageStatsRepository
+import com.bepresent.android.debug.RuntimeLog
+import com.bepresent.android.features.blocking.BlockedAppActivity
 import com.bepresent.android.features.intentions.IntentionManager
 import com.bepresent.android.features.sessions.SessionManager
 import com.bepresent.android.permissions.PermissionManager
 import com.bepresent.android.service.MonitoringService
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -35,7 +39,8 @@ data class DevUiState(
     val totalXp: Int = 0,
     val totalCoins: Int = 0,
     val streakFreezeAvailable: Boolean = false,
-    val activeSessionId: String? = null
+    val activeSessionId: String? = null,
+    val runtimeLogs: List<String> = emptyList()
 )
 
 @HiltViewModel
@@ -54,7 +59,7 @@ class DevViewModel @Inject constructor(
     private val _blockedPackages = MutableStateFlow<Set<String>>(emptySet())
     private val _permissions = MutableStateFlow(permissionManager.checkAll())
 
-    val uiState: StateFlow<DevUiState> = combine(
+    private val baseUiState: Flow<DevUiState> = combine(
         intentionManager.observeAll(),
         sessionManager.observeActiveSession(),
         _foregroundApp,
@@ -80,6 +85,10 @@ class DevViewModel @Inject constructor(
             streakFreezeAvailable = data.freeze,
             activeSessionId = data.sessionId
         )
+    }
+
+    val uiState: StateFlow<DevUiState> = combine(baseUiState, RuntimeLog.entries) { state, logs ->
+        state.copy(runtimeLogs = logs)
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), DevUiState())
 
     private data class DataGroup(
@@ -91,6 +100,7 @@ class DevViewModel @Inject constructor(
     )
 
     init {
+        RuntimeLog.i(TAG, "DevViewModel initialized")
         // Poll foreground app and blocked packages every 2s
         viewModelScope.launch {
             while (isActive) {
@@ -141,10 +151,35 @@ class DevViewModel @Inject constructor(
     }
 
     fun startMonitoring() {
+        RuntimeLog.i(TAG, "startMonitoring from Dev tools")
         MonitoringService.start(getApplication())
     }
 
     fun stopMonitoring() {
+        RuntimeLog.i(TAG, "stopMonitoring from Dev tools")
         MonitoringService.stop(getApplication())
+    }
+
+    fun launchTestShield(shieldType: String) {
+        val packageName = _foregroundApp.value
+            ?: _blockedPackages.value.firstOrNull()
+            ?: "com.instagram.android"
+        RuntimeLog.i(TAG, "launchTestShield: type=$shieldType package=$packageName")
+        val intent = Intent(getApplication(), BlockedAppActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or
+                Intent.FLAG_ACTIVITY_CLEAR_TOP or
+                Intent.FLAG_ACTIVITY_SINGLE_TOP
+            putExtra(BlockedAppActivity.EXTRA_BLOCKED_PACKAGE, packageName)
+            putExtra(BlockedAppActivity.EXTRA_SHIELD_TYPE, shieldType)
+        }
+        getApplication<Application>().startActivity(intent)
+    }
+
+    fun clearRuntimeLogs() {
+        RuntimeLog.clear()
+    }
+
+    companion object {
+        private const val TAG = "BP_Dev"
     }
 }

@@ -3,7 +3,7 @@ package com.bepresent.android.data.usage
 import android.app.usage.UsageEvents
 import android.app.usage.UsageStatsManager
 import android.content.Context
-import android.util.Log
+import com.bepresent.android.debug.RuntimeLog
 import dagger.hilt.android.qualifiers.ApplicationContext
 import java.util.Calendar
 import javax.inject.Inject
@@ -57,7 +57,13 @@ class UsageStatsRepository @Inject constructor(
             }
         }
         val result = lastForegroundPackage ?: getCurrentForegroundPackage()
-        Log.d(TAG, "detectForeground: events=$eventCount fromEvents=$lastForegroundPackage result=$result")
+        RuntimeLog.d(
+            TAG,
+            "detectForeground: events=$eventCount fromEvents=$lastForegroundPackage result=$result"
+        )
+        if (result == null) {
+            RuntimeLog.w(TAG, "detectForeground: no foreground app detected in 10s window")
+        }
         return result
     }
 
