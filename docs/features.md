@@ -1,98 +1,89 @@
 # Features
 
-## App Intentions
+This document describes shipped behavior in the current Android codebase.
 
-Per-app daily open limits with a shield/intervention screen.
+## 1. App Intentions
+Per-app daily open limits with temporary unlock windows.
 
-### Flow
-1. User taps "+ Add" on dashboard → app picker (single-select)
-2. Configures: allowed opens per day (1-10), time per open (1-30 min)
-3. App is immediately shielded
-4. When user opens the blocked app:
-   - Shield shows with opens used/allowed and streak count
-   - "Nevermind" → goes home
-   - "Open [App]" → starts timed window, app unblocked for N minutes
-5. Timer expires → app re-blocked, shield re-appears if still in foreground
+### User flow
+1. User selects an app from the app picker.
+2. User sets opens/day and minutes/open.
+3. App stays blocked unless it is inside an active unlock window.
+4. When the window expires, the app is re-blocked.
 
-### Over-Limit Behavior
-When all daily opens are used:
-- Shield shows stronger messaging ("You've used all 3 opens today")
-- "Open Anyway" is still available (soft enforcement)
-- Opening past the limit breaks the streak at midnight (unless freeze active)
+### Enforcement behavior
+- `MonitoringService` checks foreground app every ~1 second.
+- If a blocked app is detected, `BlockedAppActivity` is launched.
+- User can open temporarily from the shield (intention flow), then app is re-blocked by alarm.
 
-### Streaks
-- Incremented daily at midnight if opens stayed within limit
-- Reset to 0 if over limit (unless streak freeze consumed)
-- Streak freeze: 1 per week, granted every Monday, protects all intentions
+Key files:
+- `app/src/main/java/com/bepresent/android/features/intentions/IntentionManager.kt`
+- `app/src/main/java/com/bepresent/android/service/MonitoringService.kt`
+- `app/src/main/java/com/bepresent/android/service/IntentionAlarmReceiver.kt`
 
-### Editing/Deleting
-Tap an intention card on the dashboard to edit limits or delete.
-
----
-
-## Blocking Sessions
-
+## 2. Blocking Sessions
 Timed focus sessions that block selected apps.
 
-### Configuration
-- Session name (optional, defaults to "Focus Session")
-- Goal duration: 5, 10, 15, 20, 30, 45, 60, 90, or 120 minutes
-- Apps to block (multi-select from app picker)
-- Beast Mode toggle (disables "Give Up")
+### User flow
+1. User picks blocked apps and session duration.
+2. Session starts and monitoring runs continuously.
+3. Opening blocked apps triggers session shield.
+4. Goal reached moves session to `goalReached` state; completion awards XP/coins.
 
-### State Machine
-```
-idle → active → goalReached → completed (+XP)
-         ↓
-       gaveUp (0 XP)
-         ↓
-       canceled (only within first 10s, 0 XP)
-```
+### Session states
+`idle -> active -> goalReached -> completed`
 
-### XP/Coins Rewards
-| Duration | XP | Coins |
+Alternate exits:
+- `gaveUp`
+- `canceled` (early cancel path)
+
+Key files:
+- `app/src/main/java/com/bepresent/android/features/sessions/SessionManager.kt`
+- `app/src/main/java/com/bepresent/android/features/sessions/SessionStateMachine.kt`
+- `app/src/main/java/com/bepresent/android/service/SessionAlarmReceiver.kt`
+
+## 3. Shield interruption UX
+`BlockedAppActivity` renders shield variants for:
+- Session block
+- Intention block
+- Goal reached
+
+Key files:
+- `app/src/main/java/com/bepresent/android/features/blocking/BlockedAppActivity.kt`
+- `app/src/main/java/com/bepresent/android/features/blocking/ShieldScreen.kt`
+
+## 4. Permissions requested from user
+These are the permissions actively requested in onboarding/system settings flow and used for blocking capabilities.
+
+| Permission | Requested from user | How it is used |
 |---|---|---|
-| ≤ 15 min | 3 | 3 |
-| ≤ 30 min | 5 | 5 |
-| ≤ 45 min | 8 | 8 |
-| ≤ 60 min | 10 | 10 |
-| ≤ 90 min | 15 | 15 |
-| ≤ 120 min | 25 | 25 |
+| Usage Access (`PACKAGE_USAGE_STATS`) | Yes | Detect foreground app and screen-time usage for block enforcement. |
+| Overlay (`SYSTEM_ALERT_WINDOW`) | Yes | Treated as critical permission gate; used as part of shield-launch capability checks. |
+| Accessibility Service | Yes | User is prompted to enable service; currently used as a required gate for enforcement readiness checks. |
 
-### Session + Intention Priority
-If both apply to the same app, the session shield takes priority. The intention's open count is not affected by session blocks.
+Important implementation note:
+- Foreground detection currently runs through `UsageStatsRepository`.
+- `AccessibilityMonitorService` exists but event handling is currently reserved (no active event processing).
 
----
+## 5. Other declared permissions (not core enforcement gate)
+| Permission | Current role |
+|---|---|
+| `POST_NOTIFICATIONS` | Session/intention notifications. |
+| `FOREGROUND_SERVICE`, `FOREGROUND_SERVICE_SPECIAL_USE` | Keep monitoring service running. |
+| `RECEIVE_BOOT_COMPLETED` | Restart monitoring after reboot when needed. |
+| `USE_EXACT_ALARM`, `WAKE_LOCK` | Reliable timed re-block and session-goal alarms. |
+| `QUERY_ALL_PACKAGES` | App picker visibility for installed apps. |
+| `REQUEST_IGNORE_BATTERY_OPTIMIZATIONS` | Optional reliability improvement on OEM devices. |
+| `INTERNET` | Convex/auth network operations. |
 
-## Shield Screen Variants
+## 6. Database status (rechecked)
+Database is active and used at runtime:
+- Room database: `BePresentDatabase`
+- Entities: sessions, session actions, app intentions, sync queue
+- DAOs are injected through Hilt and used by managers/services
 
-### Session Active
-- Shows shield icon and session name
-- "Be Present" → navigates home
-- "Unlock?" → explains how to end session (disabled in beast mode)
-
-### Goal Reached
-- Shows celebration and XP preview
-- "Complete" → ends session, awards XP
-- "Stay Present" → goes home, session continues
-
-### App Intention
-- Shows app name, opens used/allowed, streak
-- "Nevermind" → goes home
-- "Open [App] (for N minutes)" → starts timed window
-
-### Intention Over-Limit
-- Same as intention but with warning about streak breaking
-- "Open Anyway" replaces the open button
-
----
-
-## Dashboard
-
-Single scrollable screen with:
-1. **Header**: App name, streak count, XP total
-2. **Screen Time Card**: Circular progress (8h max), per-app usage chips
-3. **Active Session Card** (if session running): Timer, give up/complete actions
-4. **Intentions Row**: Horizontal scroll of intention cards with "+ Add"
-5. **Start Session CTA**: Opens session configuration sheet
-6. **Permission Banner** (if critical permission missing): Tap to fix
+Key files:
+- `app/src/main/java/com/bepresent/android/data/db/BePresentDatabase.kt`
+- `app/src/main/java/com/bepresent/android/di/AppModule.kt`
+- `app/src/main/java/com/bepresent/android/features/sessions/SessionManager.kt`
+- `app/src/main/java/com/bepresent/android/features/intentions/IntentionManager.kt`

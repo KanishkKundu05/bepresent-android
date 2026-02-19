@@ -14,15 +14,20 @@ permissions/
 
 Singleton class that checks and manages permissions needed by onboarding and runtime checks.
 
-### Required Permissions
+### Permissions in Enforcement Gate
 
 | Permission | Purpose | Check Method |
 |------------|---------|--------------|
-| Overlay | Show blocking UI over distracting apps | `hasOverlayPermission()` |
+| Overlay | Critical gating signal for blocking readiness | `hasOverlayPermission()` |
 | Usage Stats | Monitor app usage, detect foreground apps | `hasUsageStatsPermission()` |
-| Accessibility | Detect active app for blocking flow | `hasAccessibilityPermission()` |
+| Accessibility | Critical gating signal; service enablement check | `hasAccessibilityPermission()` |
+
+### Supporting Permissions (not in `criticalGranted`)
+
+| Permission | Purpose | Check Method |
+|------------|---------|--------------|
 | Notifications | Show session alerts and warnings | `hasNotificationPermission()` |
-| Battery Optimization | Keep monitoring service alive | `isBatteryOptimizationDisabled()` |
+| Battery Optimization | Improve monitoring reliability on OEM devices | `isBatteryOptimizationDisabled()` |
 
 ### Permission Status
 
@@ -117,7 +122,8 @@ guide?.let { instruction ->
 1. **OnboardingScreen** - Checks permissions, shows request UI, navigates to system settings
 2. **DashboardScreen** - Shows warning banner if `!permissionsOk`
 3. **MonitoringService** - Requires usage stats permission to function
-4. **UsageStatsRepository** - Operations fail silently without permission
+4. **UsageStatsRepository** - Operations fail silently without usage access
+5. **AccessibilityMonitorService** - Exists and is user-enabled, but event handling is currently reserved
 
 ## Android Version Handling
 

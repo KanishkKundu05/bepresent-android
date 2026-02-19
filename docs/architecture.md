@@ -24,11 +24,11 @@ BePresent Android is a single-module Jetpack Compose app built with a layered ar
 
 ## Key Design Decisions
 
-### 1. Full-Screen Activity for Shield (not overlay)
-`BlockedAppActivity` runs in its own task (`taskAffinity=""`, `singleTask`). This avoids the `SYSTEM_ALERT_WINDOW` permission entirely and provides reliable navigation handling with Compose.
+### 1. Full-Screen Activity for Shield
+`BlockedAppActivity` runs in its own task (`taskAffinity=""`, `singleTask`) and is launched by `MonitoringService` when a blocked app is detected.
 
-### 2. UsageStats Polling (not AccessibilityService)
-`MonitoringService` polls `UsageStatsManager.queryEvents()` every 1 second. This is Play Store safe — no special review required. The ~1 second "flash" of the blocked app is an accepted tradeoff for MVP.
+### 2. UsageStats Polling with Accessibility Gate
+`MonitoringService` polls `UsageStatsManager.queryEvents()` every 1 second for foreground detection. Accessibility service enablement is currently required by permission gating, but accessibility event processing is reserved for future integration.
 
 ### 3. Room + DataStore Split
 - **Room**: Structured entities with relationships (intentions, sessions, actions)

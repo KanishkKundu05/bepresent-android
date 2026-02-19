@@ -1,7 +1,7 @@
 # BePresent Android — Claude Code Context
 
 ## Project Overview
-BePresent is a digital wellbeing app for Android. MVP is a single-screen dashboard with two core features: **App Intentions** (per-app daily open limits) and **Blocking Sessions** (timed focus sessions). Fully offline, no auth, no backend.
+BePresent is a digital wellbeing app for Android. MVP is a single-screen dashboard with two core features: **App Intentions** (per-app daily open limits) and **Blocking Sessions** (timed focus sessions). Local-first with optional Convex/Auth0 integration.
 
 ## Tech Stack
 - **Language**: Kotlin
@@ -41,11 +41,14 @@ app/src/main/java/com/bepresent/android/
 
 ## Conventions
 - Commit messages: lowercase, concise, imperative
-- No AccessibilityService (UsageStats polling only for MVP)
+- UsageStats polling is the active foreground-detection path
+- Accessibility service is permission-gated and reserved for future event-driven detection
 - Soft enforcement: users can always "Open Anyway" (streak breaks)
 - Session priority over intentions when both block the same app
 
 ## Spec Documents
-- `planning/mvp-single-screen.md` — Full MVP specification (source of truth)
-- `planning/android-implementation-guide.md` — API code samples
-- `planning/android-critical-considerations.md` — Known limitations and edge cases
+Planning/spec source files were removed from this repository.
+Use current implementation docs instead:
+- `README.md`
+- `docs/features.md`
+- `docs/permissions-and-enforcement.md`

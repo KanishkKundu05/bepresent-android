@@ -24,21 +24,21 @@
    Select an emulator or device (API 26+) and hit Run.
 
 ## First Launch
-The app opens with a 5-step onboarding flow:
-1. Welcome screen
-2. Usage Access permission (required — opens system Settings)
-3. Notification permission (Android 13+, can skip)
-4. Battery optimization (recommended, with OEM-specific guide)
-5. Ready screen → opens dashboard
+The app opens with a permissions onboarding flow centered on block enforcement:
+1. Overlay permission (`SYSTEM_ALERT_WINDOW`) via system settings
+2. Usage Access permission (`PACKAGE_USAGE_STATS`) via system settings
+3. Accessibility service enablement via system settings
+4. On success, onboarding completes and opens dashboard
 
 ## Key Permissions
 
 | Permission | How to Grant | Required? |
 |---|---|---|
-| Usage Access | Settings > Usage Access > BePresent | Yes (core) |
-| Notifications | Runtime dialog (Android 13+) | Recommended |
-| Battery Optimization | System dialog + OEM settings | Recommended |
-| All others | Auto-granted via manifest | Yes |
+| Overlay | Settings > Display over other apps > BePresent | Yes (critical gate) |
+| Usage Access | Settings > Usage Access > BePresent | Yes (critical gate) |
+| Accessibility Service | Settings > Accessibility > BePresent | Yes (critical gate) |
+| Notifications | System notification settings | Recommended |
+| Battery Optimization Ignore | System battery settings | Recommended |
 
 ## Testing on Emulator
 - **Usage Access**: Works on emulator, but screen time data may be minimal
