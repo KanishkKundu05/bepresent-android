@@ -1,0 +1,314 @@
+package com.bepresent.android.ui.homev2
+
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import com.bepresent.android.data.datastore.PreferencesManager
+import com.bepresent.android.data.db.AppIntention
+import com.bepresent.android.data.db.PresentSession
+import com.bepresent.android.data.usage.UsageStatsRepository
+import com.bepresent.android.features.intentions.IntentionManager
+import com.bepresent.android.features.sessions.SessionManager
+import com.bepresent.android.permissions.PermissionManager
+import com.bepresent.android.ui.homev2.components.ActiveSessionSubState
+import com.bepresent.android.ui.homev2.components.ActiveSessionUiState
+import com.bepresent.android.ui.homev2.components.BlockedTimeState
+import com.bepresent.android.ui.homev2.components.DailyQuestUiState
+import com.bepresent.android.ui.homev2.components.DayUiModel
+import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
+import java.text.SimpleDateFormat
+import java.util.Calendar
+import java.util.Locale
+import javax.inject.Inject
+
+enum class HomeScreenState {
+    Idle,
+    Countdown,
+    ActiveSession
+}
+
+data class HomeV2UiState(
+    val screenState: HomeScreenState = HomeScreenState.Idle,
+    val countdownValue: Int = 3,
+    val blockedTimeState: BlockedTimeState = BlockedTimeState(),
+    val activeSessionState: ActiveSessionUiState = ActiveSessionUiState(),
+    val intentions: List<AppIntention> = emptyList(),
+    val dailyQuestState: DailyQuestUiState = DailyQuestUiState(),
+    val days: List<DayUiModel> = emptyList(),
+    val streak: Int = 0,
+    val isStreakFrozen: Boolean = false,
+    val weeklyXp: Int = 0,
+    val sessionModeIndex: Int = 0,        // 0 = All Apps, 1 = Specific Apps
+    val sessionDurationMinutes: Int = 30,
+    val sessionBeastMode: Boolean = false,
+    val permissionsOk: Boolean = true,
+    val totalBlockedTodayMs: Long = 0L
+)
+
+@HiltViewModel
+class HomeV2ViewModel @Inject constructor(
+    private val usageStatsRepository: UsageStatsRepository,
+    private val intentionManager: IntentionManager,
+    private val sessionManager: SessionManager,
+    private val preferencesManager: PreferencesManager,
+    private val permissionManager: PermissionManager
+) : ViewModel() {
+
+    private val _screenState = MutableStateFlow(HomeScreenState.Idle)
+    private val _countdownValue = MutableStateFlow(3)
+    private val _sessionModeIndex = MutableStateFlow(0)
+    private val _sessionDurationMinutes = MutableStateFlow(30)
+    private val _sessionBeastMode = MutableStateFlow(false)
+    private val _totalBlockedTodayMs = MutableStateFlow(0L)
+    private val _activeSessionUi = MutableStateFlow(ActiveSessionUiState())
+
+    private var countdownJob: Job? = null
+    private var sessionTimerJob: Job? = null
+
+    val uiState: StateFlow<HomeV2UiState> = combine(
+        _screenState,
+        _countdownValue,
+        intentionManager.observeAll(),
+        sessionManager.observeActiveSession(),
+        preferencesManager.totalXp
+    ) { screenState, countdown, intentions, activeSession, xp ->
+
+        // If there's an active session, ensure we're in ActiveSession state
+        val effectiveState = if (activeSession != null && screenState == HomeScreenState.Idle) {
+            HomeScreenState.ActiveSession
+        } else {
+            screenState
+        }
+
+        // Update active session timer state if session exists
+        if (activeSession != null && effectiveState == HomeScreenState.ActiveSession) {
+            startSessionTimerIfNeeded(activeSession)
+        }
+
+        val blockedMs = _totalBlockedTodayMs.value
+        val h = (blockedMs / 3_600_000).toInt()
+        val m = ((blockedMs % 3_600_000) / 60_000).toInt()
+        val s = ((blockedMs % 60_000) / 1_000).toInt()
+
+        HomeV2UiState(
+            screenState = effectiveState,
+            countdownValue = countdown,
+            blockedTimeState = BlockedTimeState(
+                hours = "%02d".format(h),
+                minutes = "%02d".format(m),
+                seconds = "%02d".format(s),
+                sessionModeLabel = if (_sessionModeIndex.value == 0) "All apps" else "Specific apps",
+                sessionDurationLabel = formatDurationLabel(_sessionDurationMinutes.value)
+            ),
+            activeSessionState = _activeSessionUi.value,
+            intentions = intentions,
+            dailyQuestState = DailyQuestUiState(
+                completedSession = activeSession?.state == PresentSession.STATE_COMPLETED ||
+                        activeSession?.state == PresentSession.STATE_GOAL_REACHED
+            ),
+            days = generateDays(),
+            streak = intentions.maxOfOrNull { it.streak } ?: 0,
+            isStreakFrozen = false,
+            weeklyXp = xp,
+            sessionModeIndex = _sessionModeIndex.value,
+            sessionDurationMinutes = _sessionDurationMinutes.value,
+            sessionBeastMode = _sessionBeastMode.value,
+            permissionsOk = permissionManager.checkAll().criticalGranted,
+            totalBlockedTodayMs = blockedMs
+        )
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), HomeV2UiState())
+
+    init {
+        // Poll blocked time every 5 seconds
+        viewModelScope.launch {
+            while (isActive) {
+                refreshBlockedTime()
+                delay(5_000)
+            }
+        }
+    }
+
+    // --- Session Mode / Goal ---
+
+    fun setSessionMode(index: Int) {
+        _sessionModeIndex.value = index
+    }
+
+    fun setSessionGoal(durationMinutes: Int, beastMode: Boolean) {
+        _sessionDurationMinutes.value = durationMinutes
+        _sessionBeastMode.value = beastMode
+    }
+
+    // --- Countdown ---
+
+    fun startCountdown() {
+        _screenState.value = HomeScreenState.Countdown
+        _countdownValue.value = 3
+        countdownJob?.cancel()
+        countdownJob = viewModelScope.launch {
+            for (i in 3 downTo 1) {
+                _countdownValue.value = i
+                delay(1000)
+            }
+            // Countdown finished -> start session
+            startSession()
+        }
+    }
+
+    fun cancelCountdown() {
+        countdownJob?.cancel()
+        _screenState.value = HomeScreenState.Idle
+        _countdownValue.value = 3
+    }
+
+    // --- Session ---
+
+    private fun startSession() {
+        viewModelScope.launch {
+            sessionManager.createAndStart(
+                name = "Focus Session",
+                goalDurationMinutes = _sessionDurationMinutes.value,
+                blockedPackages = emptyList(), // TODO: wire actual app selection
+                beastMode = _sessionBeastMode.value
+            )
+            _screenState.value = HomeScreenState.ActiveSession
+        }
+    }
+
+    private var sessionTimerActive = false
+
+    private fun startSessionTimerIfNeeded(session: PresentSession) {
+        if (sessionTimerActive) return
+        sessionTimerActive = true
+        sessionTimerJob?.cancel()
+        sessionTimerJob = viewModelScope.launch {
+            while (isActive) {
+                val now = System.currentTimeMillis()
+                val started = session.startedAt ?: now
+                val goalMs = session.goalDurationMinutes * 60 * 1000L
+                val elapsed = now - started
+                val remaining = (goalMs - elapsed).coerceAtLeast(0)
+                val progress = (elapsed.toFloat() / goalMs).coerceIn(0f, 1f)
+                val xp = session.goalDurationMinutes * 2
+
+                val subState = when {
+                    session.state == PresentSession.STATE_GOAL_REACHED -> ActiveSessionSubState.Completed
+                    session.state == PresentSession.STATE_COMPLETED -> ActiveSessionSubState.Completed
+                    else -> ActiveSessionSubState.Active
+                }
+
+                val mins = (remaining / 60_000).toInt()
+                val secs = ((remaining % 60_000) / 1_000).toInt()
+
+                _activeSessionUi.value = ActiveSessionUiState(
+                    subState = subState,
+                    sessionName = session.name,
+                    modeLabel = if (_sessionModeIndex.value == 0) "Allow List" else "Block List",
+                    timeRemainingString = "%02d:%02d".format(mins, secs),
+                    progress = progress,
+                    points = xp,
+                    beastMode = session.beastMode
+                )
+
+                delay(1000)
+            }
+        }
+    }
+
+    fun giveUpSession() {
+        viewModelScope.launch {
+            val session = sessionManager.getActiveSession() ?: return@launch
+            sessionManager.giveUp(session.id)
+            resetToIdle()
+        }
+    }
+
+    fun completeSession() {
+        viewModelScope.launch {
+            val session = sessionManager.getActiveSession() ?: return@launch
+            sessionManager.complete(session.id)
+            resetToIdle()
+        }
+    }
+
+    fun cancelSession() {
+        viewModelScope.launch {
+            val session = sessionManager.getActiveSession() ?: return@launch
+            sessionManager.cancel(session.id)
+            resetToIdle()
+        }
+    }
+
+    private fun resetToIdle() {
+        sessionTimerJob?.cancel()
+        sessionTimerActive = false
+        _screenState.value = HomeScreenState.Idle
+        _activeSessionUi.value = ActiveSessionUiState()
+    }
+
+    // --- Intentions ---
+
+    fun createIntention(
+        packageName: String,
+        appName: String,
+        allowedOpensPerDay: Int,
+        timePerOpenMinutes: Int
+    ) {
+        viewModelScope.launch {
+            intentionManager.create(packageName, appName, allowedOpensPerDay, timePerOpenMinutes)
+        }
+    }
+
+    fun updateIntention(intention: AppIntention) {
+        viewModelScope.launch { intentionManager.update(intention) }
+    }
+
+    fun deleteIntention(intention: AppIntention) {
+        viewModelScope.launch { intentionManager.delete(intention) }
+    }
+
+    // --- Helpers ---
+
+    private fun refreshBlockedTime() {
+        viewModelScope.launch {
+            try {
+                _totalBlockedTodayMs.value = usageStatsRepository.getTotalScreenTimeToday()
+            } catch (_: Exception) { }
+        }
+    }
+
+    private fun generateDays(): List<DayUiModel> {
+        val dayFormat = SimpleDateFormat("EEE", Locale.getDefault())
+        val dateFormat = SimpleDateFormat("d", Locale.getDefault())
+
+        return (-3..3).map { offset ->
+            val c = Calendar.getInstance().apply { add(Calendar.DAY_OF_YEAR, offset) }
+            val date = c.time
+            DayUiModel(
+                weekDay = dayFormat.format(date).uppercase().take(3),
+                number = dateFormat.format(date),
+                isEnabled = offset <= 0,
+                isChecked = offset < 0, // past days shown as checked (placeholder)
+                isCurrentDay = offset == 0
+            )
+        }
+    }
+
+    private fun formatDurationLabel(minutes: Int): String {
+        val h = minutes / 60
+        val m = minutes % 60
+        return when {
+            h > 0 && m > 0 -> "${h}h ${m}m"
+            h > 0 -> "${h}h"
+            else -> "${m}m"
+        }
+    }
+}
