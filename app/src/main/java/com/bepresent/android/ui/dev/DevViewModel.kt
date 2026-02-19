@@ -34,7 +34,11 @@ data class DevUiState(
     val foregroundApp: String? = null,
     val blockedPackages: Set<String> = emptySet(),
     val permissions: PermissionManager.PermissionStatus = PermissionManager.PermissionStatus(
-        usageStats = false, notifications = false, batteryOptimization = false, overlay = false
+        usageStats = false,
+        notifications = false,
+        batteryOptimization = false,
+        overlay = false,
+        accessibility = false
     ),
     val totalXp: Int = 0,
     val totalCoins: Int = 0,

@@ -23,6 +23,7 @@
     <string name="onboarding_done_title">You\'re Ready!</string>
     <string name="onboarding_done_subtitle">Time to be present</string>
     <string name="onboarding_done_cta">Open Dashboard</string>
+    <string name="accessibility_service_description">BePresent uses accessibility to detect the active app for focus blocking. Screen content is never read or collected.</string>
 
     <!-- Dashboard -->
     <string name="dashboard_screen_time">Screen Time Today</string>
