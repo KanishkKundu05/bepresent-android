@@ -1,0 +1,181 @@
+package com.bepresent.android.ui.onboarding.v2
+
+import com.bepresent.android.ui.onboarding.v2.animation.ScreenAnimation
+
+/**
+ * Represents each screen in the V2 onboarding flow.
+ */
+sealed class OnboardingScreenType {
+    data object Welcome : OnboardingScreenType()
+    data object UserWhy : OnboardingScreenType()
+    data object UserHow : OnboardingScreenType()
+    data object UserWhat : OnboardingScreenType()
+    data class Question(
+        val title: String,
+        val emoji: String,
+        val options: List<QuestionOption>,
+        val questionType: QuestionType
+    ) : OnboardingScreenType()
+    data object Loading : OnboardingScreenType()
+    data object ShockPage1 : OnboardingScreenType()
+    data object ShockPage2 : OnboardingScreenType()
+    data object Rating : OnboardingScreenType()
+    data object PermissionsSetup : OnboardingScreenType()
+    data object NotificationPermission : OnboardingScreenType()
+    data object SevenDayChallenge : OnboardingScreenType()
+    data class PostPaywallMessage(val message: String) : OnboardingScreenType()
+    data object ChooseUsername : OnboardingScreenType()
+    data object SelectApps : OnboardingScreenType()
+    data object Acquisition : OnboardingScreenType()
+}
+
+data class QuestionOption(
+    val title: String,
+    val emoji: String? = null
+)
+
+enum class QuestionType {
+    Age,
+    ScreenTime
+}
+
+/** Whether to show the top progress bar on this screen. */
+val OnboardingScreenType.showProgressBar: Boolean
+    get() = when (this) {
+        is OnboardingScreenType.Welcome,
+        is OnboardingScreenType.UserWhy,
+        is OnboardingScreenType.UserHow,
+        is OnboardingScreenType.UserWhat -> false
+        else -> true
+    }
+
+/** Whether the screen has a continue button at the bottom. */
+enum class ButtonConfig {
+    Full,          // Full-width continue button
+    Hidden,        // No button (screen handles its own navigation)
+    None           // No button at all
+}
+
+val OnboardingScreenType.buttonConfig: ButtonConfig
+    get() = when (this) {
+        is OnboardingScreenType.Welcome -> ButtonConfig.Full
+        is OnboardingScreenType.UserWhy -> ButtonConfig.Full
+        is OnboardingScreenType.UserHow -> ButtonConfig.Full
+        is OnboardingScreenType.UserWhat -> ButtonConfig.Hidden
+        is OnboardingScreenType.Question -> ButtonConfig.Hidden
+        is OnboardingScreenType.Loading -> ButtonConfig.Hidden
+        is OnboardingScreenType.ShockPage1 -> ButtonConfig.Hidden
+        is OnboardingScreenType.ShockPage2 -> ButtonConfig.Full
+        is OnboardingScreenType.Rating -> ButtonConfig.Hidden
+        is OnboardingScreenType.PermissionsSetup -> ButtonConfig.Hidden
+        is OnboardingScreenType.NotificationPermission -> ButtonConfig.Full
+        is OnboardingScreenType.SevenDayChallenge -> ButtonConfig.Hidden
+        is OnboardingScreenType.PostPaywallMessage -> ButtonConfig.Full
+        is OnboardingScreenType.ChooseUsername -> ButtonConfig.Hidden
+        is OnboardingScreenType.SelectApps -> ButtonConfig.Hidden
+        is OnboardingScreenType.Acquisition -> ButtonConfig.Hidden
+    }
+
+/** Button title for screens that show a button. */
+val OnboardingScreenType.buttonTitle: String
+    get() = when (this) {
+        is OnboardingScreenType.Welcome -> "Get Started"
+        is OnboardingScreenType.UserWhy -> "Continue"
+        is OnboardingScreenType.UserHow -> "Continue"
+        is OnboardingScreenType.ShockPage2 -> "Get those years back!"
+        is OnboardingScreenType.NotificationPermission -> "Enable Notifications"
+        is OnboardingScreenType.PostPaywallMessage -> "Continue"
+        else -> "Continue"
+    }
+
+/** Background gradient type for each screen. */
+enum class GradientType {
+    Blue,
+    Orange,
+    White
+}
+
+val OnboardingScreenType.gradientType: GradientType
+    get() = when (this) {
+        is OnboardingScreenType.Welcome -> GradientType.Blue
+        is OnboardingScreenType.UserWhy -> GradientType.Blue
+        is OnboardingScreenType.UserHow -> GradientType.Blue
+        is OnboardingScreenType.UserWhat -> GradientType.Blue
+        is OnboardingScreenType.Question -> GradientType.White
+        is OnboardingScreenType.Loading -> GradientType.Blue
+        is OnboardingScreenType.ShockPage1 -> GradientType.White
+        is OnboardingScreenType.ShockPage2 -> GradientType.White
+        is OnboardingScreenType.Rating -> GradientType.Blue
+        is OnboardingScreenType.PermissionsSetup -> GradientType.White
+        is OnboardingScreenType.NotificationPermission -> GradientType.White
+        is OnboardingScreenType.SevenDayChallenge -> GradientType.White
+        is OnboardingScreenType.PostPaywallMessage -> GradientType.Blue
+        is OnboardingScreenType.ChooseUsername -> GradientType.White
+        is OnboardingScreenType.SelectApps -> GradientType.White
+        is OnboardingScreenType.Acquisition -> GradientType.White
+    }
+
+/** Animation style for entering/exiting each screen. */
+val OnboardingScreenType.introAnimation: ScreenAnimation
+    get() = when (this) {
+        is OnboardingScreenType.Question,
+        is OnboardingScreenType.Acquisition -> ScreenAnimation.Drawer
+        else -> ScreenAnimation.Intro
+    }
+
+val OnboardingScreenType.outroAnimation: ScreenAnimation
+    get() = when (this) {
+        is OnboardingScreenType.Question,
+        is OnboardingScreenType.Acquisition -> ScreenAnimation.Drawer
+        else -> ScreenAnimation.Intro
+    }
+
+/** Build the default onboarding screen list. */
+fun buildOnboardingScreens(): List<OnboardingScreenType> = listOf(
+    OnboardingScreenType.Welcome,
+    OnboardingScreenType.UserWhy,
+    OnboardingScreenType.UserHow,
+    OnboardingScreenType.UserWhat,
+    OnboardingScreenType.Question(
+        title = "What's your age?",
+        emoji = "\uD83D\uDC64",
+        options = listOf(
+            QuestionOption("Under 18", "\uD83E\uDDD2"),
+            QuestionOption("18-24", "\uD83E\uDDD1"),
+            QuestionOption("25-34", "\uD83D\uDE4B"),
+            QuestionOption("35-44", "\uD83D\uDC68"),
+            QuestionOption("45-54", "\uD83E\uDDD4"),
+            QuestionOption("55-64", "\uD83D\uDC74"),
+            QuestionOption("65+", "\uD83D\uDC75")
+        ),
+        questionType = QuestionType.Age
+    ),
+    OnboardingScreenType.Question(
+        title = "How much screen time do you average per day?",
+        emoji = "\uD83D\uDCF1",
+        options = listOf(
+            QuestionOption("Less than 2 hours", "\u23F0"),
+            QuestionOption("2-3 hours", "\uD83D\uDCCA"),
+            QuestionOption("3-4 hours", "\uD83D\uDCCA"),
+            QuestionOption("4-5 hours", "\uD83D\uDCCA"),
+            QuestionOption("5-6 hours", "\uD83D\uDCCA"),
+            QuestionOption("6-8 hours", "\uD83D\uDE31"),
+            QuestionOption("8-10 hours", "\uD83E\uDD2F"),
+            QuestionOption("10+ hours", "\uD83D\uDCA3")
+        ),
+        questionType = QuestionType.ScreenTime
+    ),
+    OnboardingScreenType.Loading,
+    OnboardingScreenType.ShockPage1,
+    OnboardingScreenType.ShockPage2,
+    OnboardingScreenType.Rating,
+    OnboardingScreenType.PermissionsSetup,
+    OnboardingScreenType.NotificationPermission,
+    OnboardingScreenType.SevenDayChallenge,
+    OnboardingScreenType.PostPaywallMessage(
+        message = "You're all set! Let's start your journey to less screen time."
+    ),
+    OnboardingScreenType.ChooseUsername,
+    OnboardingScreenType.SelectApps,
+    OnboardingScreenType.Acquisition
+)
