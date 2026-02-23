@@ -31,6 +31,11 @@ class PreferencesManager @Inject constructor(
         val STREAK_FREEZE_AVAILABLE = booleanPreferencesKey("streak_freeze_available")
         val LAST_FREEZE_GRANT_DATE = stringPreferencesKey("last_freeze_grant_date")
         val ACTIVE_SESSION_ID = stringPreferencesKey("active_session_id")
+
+        // Onboarding V2
+        val ONBOARDING_V2_PROGRESS = intPreferencesKey("onboarding_v2_progress")
+        val ONBOARDING_V2_ANSWERS = stringPreferencesKey("onboarding_v2_answers")
+        val ONBOARDING_V2_USERNAME = stringPreferencesKey("onboarding_v2_username")
     }
 
     // Flows
@@ -77,5 +82,39 @@ class PreferencesManager @Inject constructor(
 
     suspend fun getLastFreezeGrantDateOnce(): String {
         return dataStore.data.first()[Keys.LAST_FREEZE_GRANT_DATE] ?: ""
+    }
+
+    // ── Onboarding V2 ──
+
+    suspend fun setOnboardingV2Progress(index: Int) {
+        dataStore.edit { it[Keys.ONBOARDING_V2_PROGRESS] = index }
+    }
+
+    suspend fun getOnboardingV2ProgressOnce(): Int {
+        return dataStore.data.first()[Keys.ONBOARDING_V2_PROGRESS] ?: 0
+    }
+
+    suspend fun setOnboardingV2Answers(encoded: String) {
+        dataStore.edit { it[Keys.ONBOARDING_V2_ANSWERS] = encoded }
+    }
+
+    suspend fun getOnboardingV2AnswersOnce(): String {
+        return dataStore.data.first()[Keys.ONBOARDING_V2_ANSWERS] ?: ""
+    }
+
+    suspend fun setOnboardingV2Username(username: String) {
+        dataStore.edit { it[Keys.ONBOARDING_V2_USERNAME] = username }
+    }
+
+    suspend fun getOnboardingV2UsernameOnce(): String {
+        return dataStore.data.first()[Keys.ONBOARDING_V2_USERNAME] ?: ""
+    }
+
+    suspend fun clearOnboardingV2Progress() {
+        dataStore.edit { prefs ->
+            prefs.remove(Keys.ONBOARDING_V2_PROGRESS)
+            prefs.remove(Keys.ONBOARDING_V2_ANSWERS)
+            prefs.remove(Keys.ONBOARDING_V2_USERNAME)
+        }
     }
 }
