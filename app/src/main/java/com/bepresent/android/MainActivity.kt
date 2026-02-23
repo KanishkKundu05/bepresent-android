@@ -41,7 +41,7 @@ import com.bepresent.android.ui.homev2.HomeV2Screen
 import com.bepresent.android.ui.homev2.HomeV2Tokens
 import com.bepresent.android.ui.homev2.HomeV2ViewModel
 import com.bepresent.android.ui.leaderboard.LeaderboardScreen
-import com.bepresent.android.ui.onboarding.OnboardingScreen
+import com.bepresent.android.ui.onboarding.v2.OnboardingV2Screen
 import com.bepresent.android.ui.partner.PartnerScreen
 import com.bepresent.android.ui.profile.ProfileScreen
 import com.bepresent.android.ui.theme.BePresentTheme
@@ -77,11 +77,7 @@ class MainActivity : ComponentActivity() {
                 if (onboardingCompleted) {
                     MainAppContent()
                 } else {
-                    OnboardingScreen(
-                        onComplete = {
-                            // Onboarding screen handles setting the flag
-                        }
-                    )
+                    OnboardingV2Screen()
                 }
             }
         }
