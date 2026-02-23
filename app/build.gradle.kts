@@ -123,6 +123,13 @@ dependencies {
     // Navigation
     implementation("androidx.navigation:navigation-compose:2.7.6")
 
+    // In-App Review
+    implementation("com.google.android.play:review:2.0.1")
+    implementation("com.google.android.play:review-ktx:2.0.1")
+
+    // Lottie
+    implementation("com.airbnb.android:lottie-compose:6.3.0")
+
     // Convex
     implementation("dev.convex:android-convexmobile:0.4.1")
     implementation("dev.convex:android-convex-auth0:0.2.1")
