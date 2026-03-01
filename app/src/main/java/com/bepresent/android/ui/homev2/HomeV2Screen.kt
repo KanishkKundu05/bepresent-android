@@ -29,8 +29,6 @@ import com.bepresent.android.ui.homev2.components.SessionCountdownCard
 import com.bepresent.android.ui.homev2.components.SessionGoalSheet
 import com.bepresent.android.ui.homev2.components.SessionModeSheet
 import com.bepresent.android.ui.intention.IntentionConfigSheet
-import com.bepresent.android.ui.picker.AppPickerSheet
-import com.bepresent.android.ui.picker.InstalledApp
 import com.bepresent.android.ui.profile.ProfileSheet
 
 @Composable
@@ -45,9 +43,7 @@ fun HomeV2Screen(
     var showProfileSheet by remember { mutableStateOf(false) }
     var showModeSheet by remember { mutableStateOf(false) }
     var showGoalSheet by remember { mutableStateOf(false) }
-    var showAppPicker by remember { mutableStateOf(false) }
     var showIntentionConfig by remember { mutableStateOf(false) }
-    var selectedAppForIntention by remember { mutableStateOf<InstalledApp?>(null) }
     var editingIntention by remember { mutableStateOf<AppIntention?>(null) }
 
     val statusBarTop = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
@@ -122,7 +118,7 @@ fun HomeV2Screen(
                         intentions = uiState.intentions,
                         onReload = { /* TODO: reload intentions */ },
                         onAdd = {
-                            showAppPicker = true
+                            showIntentionConfig = true
                         },
                         onIntentionClick = { intention ->
                             editingIntention = intention
@@ -169,53 +165,36 @@ fun HomeV2Screen(
         )
     }
 
-    // App Picker for Intentions
-    if (showAppPicker) {
-        val existingPackages = uiState.intentions.map { it.packageName }.toSet()
-        AppPickerSheet(
-            multiSelect = false,
-            excludePackages = existingPackages,
-            onDismiss = { showAppPicker = false },
-            onAppsSelected = { apps ->
-                showAppPicker = false
-                if (apps.isNotEmpty()) {
-                    selectedAppForIntention = apps.first()
-                    showIntentionConfig = true
-                }
-            }
-        )
-    }
-
     // Intention Config (new)
-    if (showIntentionConfig && selectedAppForIntention != null) {
+    if (showIntentionConfig) {
+        val existingPackages = uiState.intentions.map { it.packageName }.toSet()
         IntentionConfigSheet(
-            appName = selectedAppForIntention!!.label,
-            onDismiss = {
-                showIntentionConfig = false
-                selectedAppForIntention = null
-            },
-            onSave = { opens, time ->
+            excludePackages = existingPackages,
+            onDismiss = { showIntentionConfig = false },
+            onSave = { packageName, appName, opens, time ->
                 viewModel.createIntention(
-                    packageName = selectedAppForIntention!!.packageName,
-                    appName = selectedAppForIntention!!.label,
+                    packageName = packageName,
+                    appName = appName,
                     allowedOpensPerDay = opens,
                     timePerOpenMinutes = time
                 )
                 showIntentionConfig = false
-                selectedAppForIntention = null
             }
         )
     }
 
     // Intention Config (edit)
     if (editingIntention != null) {
+        val existingPackages = uiState.intentions.map { it.packageName }.toSet() - editingIntention!!.packageName
         IntentionConfigSheet(
-            appName = editingIntention!!.appName,
             existingIntention = editingIntention,
+            excludePackages = existingPackages,
             onDismiss = { editingIntention = null },
-            onSave = { opens, time ->
+            onSave = { packageName, appName, opens, time ->
                 viewModel.updateIntention(
                     editingIntention!!.copy(
+                        packageName = packageName,
+                        appName = appName,
                         allowedOpensPerDay = opens,
                         timePerOpenMinutes = time
                     )
