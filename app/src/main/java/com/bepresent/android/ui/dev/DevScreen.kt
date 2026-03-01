@@ -139,6 +139,20 @@ fun DevScreen(
                 }
             }
 
+            // --- Onboarding ---
+            SectionHeader("Onboarding")
+            Card(modifier = Modifier.fillMaxWidth()) {
+                Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    DataRow("Status", if (state.onboardingCompleted) "Completed" else "Not completed")
+                }
+            }
+            Button(
+                onClick = { viewModel.resetOnboarding() },
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text("Reset & Show Onboarding")
+            }
+
             // --- Runtime logs ---
             SectionHeader("Runtime Logs (${state.runtimeLogs.size})")
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
