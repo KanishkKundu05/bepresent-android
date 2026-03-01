@@ -120,14 +120,14 @@ fun IntentionsCard(
                     imageVector = Icons.Default.Add,
                     contentDescription = null,
                     modifier = Modifier.size(16.dp),
-                    tint = HomeV2Tokens.NeutralBlack.copy(alpha = 0.5f)
+                    tint = HomeV2Tokens.BrandPrimary
                 )
                 Spacer(modifier = Modifier.width(6.dp))
                 Text(
                     text = "Add App Intention",
                     fontSize = 14.sp,
                     fontWeight = FontWeight.Medium,
-                    color = HomeV2Tokens.NeutralBlack.copy(alpha = 0.5f)
+                    color = HomeV2Tokens.BrandPrimary
                 )
             }
         }

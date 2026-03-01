@@ -1,6 +1,8 @@
 package com.bepresent.android.ui.homev2
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.fillMaxSize
@@ -57,7 +59,7 @@ object HomeV2Tokens {
     // Typography styles (using system font — swap to FFF Acid Grotesk if font file added)
     val TimerDigitStyle = TextStyle(
         fontWeight = FontWeight.Bold,
-        fontSize = 48.sp,
+        fontSize = 36.sp,
         letterSpacing = (-1).sp
     )
 
@@ -102,6 +104,7 @@ fun CardV2(
                 spotColor = HomeV2Tokens.NeutralBlack.copy(alpha = 0.15f)
             )
             .clip(HomeV2Tokens.CardShape)
+            .border(BorderStroke(1.dp, HomeV2Tokens.Neutral200), HomeV2Tokens.CardShape)
             .background(HomeV2Tokens.Neutral100),
         content = content
     )

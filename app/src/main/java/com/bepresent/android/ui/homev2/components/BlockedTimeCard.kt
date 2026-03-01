@@ -39,7 +39,7 @@ data class BlockedTimeState(
     val dailyRecordMinutes: Int = 0,
     val dailyRecordSeconds: Int = 0,
     val sessionModeLabel: String = "All apps",
-    val sessionDurationLabel: String = "30m"
+    val sessionDurationLabel: String = "1h"
 )
 
 @Composable
@@ -104,7 +104,7 @@ fun BlockedTimeCard(
                 icon = Icons.Default.Shield,
                 label = state.sessionModeLabel,
                 onClick = onSessionModeClick,
-                modifier = Modifier.weight(1f)
+                modifier = Modifier.weight(1.4f)
             )
             // Session duration capsule
             CapsuleEntry(

@@ -47,7 +47,7 @@ data class HomeV2UiState(
     val isStreakFrozen: Boolean = false,
     val weeklyXp: Int = 0,
     val sessionModeIndex: Int = 0,        // 0 = All Apps, 1 = Specific Apps
-    val sessionDurationMinutes: Int = 30,
+    val sessionDurationMinutes: Int = 60,
     val sessionBeastMode: Boolean = false,
     val permissionsOk: Boolean = true,
     val totalBlockedTodayMs: Long = 0L
@@ -65,7 +65,7 @@ class HomeV2ViewModel @Inject constructor(
     private val _screenState = MutableStateFlow(HomeScreenState.Idle)
     private val _countdownValue = MutableStateFlow(3)
     private val _sessionModeIndex = MutableStateFlow(0)
-    private val _sessionDurationMinutes = MutableStateFlow(30)
+    private val _sessionDurationMinutes = MutableStateFlow(60)
     private val _sessionBeastMode = MutableStateFlow(false)
     private val _totalBlockedTodayMs = MutableStateFlow(0L)
     private val _activeSessionUi = MutableStateFlow(ActiveSessionUiState())
