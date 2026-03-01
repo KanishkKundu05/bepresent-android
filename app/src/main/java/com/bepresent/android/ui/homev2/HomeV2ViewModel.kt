@@ -297,6 +297,7 @@ class HomeV2ViewModel @Inject constructor(
                 number = dateFormat.format(date),
                 isEnabled = offset <= 0,
                 isChecked = offset < 0, // past days shown as checked (placeholder)
+                isFailed = false,        // TODO: wire real per-day goal data
                 isCurrentDay = offset == 0
             )
         }

@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -33,6 +34,7 @@ data class DayUiModel(
     val number: String,
     val isEnabled: Boolean,
     val isChecked: Boolean,
+    val isFailed: Boolean = false,
     val isCurrentDay: Boolean
 )
 
@@ -106,16 +108,34 @@ private fun CalendarDayCell(
         )
         Spacer(modifier = Modifier.height(4.dp))
 
-        // Status indicator
+        // Status indicator (40% larger)
         Box(
-            modifier = Modifier.size(18.dp),
+            modifier = Modifier.size(25.dp),
             contentAlignment = Alignment.Center
         ) {
             when {
+                // Past day failed (screentime below goal) → red cross
+                day.isFailed && day.isEnabled -> {
+                    Box(
+                        modifier = Modifier
+                            .size(25.dp)
+                            .clip(CircleShape)
+                            .background(HomeV2Tokens.DangerPrimary),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Close,
+                            contentDescription = "Below goal",
+                            modifier = Modifier.size(17.dp),
+                            tint = Color.White
+                        )
+                    }
+                }
+                // Past day completed → green check
                 day.isChecked && day.isEnabled -> {
                     Box(
                         modifier = Modifier
-                            .size(18.dp)
+                            .size(25.dp)
                             .clip(CircleShape)
                             .background(HomeV2Tokens.GreenPrimary),
                         contentAlignment = Alignment.Center
@@ -123,28 +143,38 @@ private fun CalendarDayCell(
                         Icon(
                             imageVector = Icons.Default.Check,
                             contentDescription = "Completed",
-                            modifier = Modifier.size(12.dp),
+                            modifier = Modifier.size(17.dp),
                             tint = Color.White
                         )
                     }
                 }
-                day.isEnabled -> {
+                // Future dates → grey tick
+                !day.isEnabled -> {
                     Box(
                         modifier = Modifier
-                            .size(18.dp)
+                            .size(25.dp)
+                            .clip(CircleShape)
+                            .background(HomeV2Tokens.NeutralWhite.copy(alpha = 0.15f)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Check,
+                            contentDescription = "Future",
+                            modifier = Modifier.size(17.dp),
+                            tint = HomeV2Tokens.NeutralWhite.copy(alpha = 0.35f)
+                        )
+                    }
+                }
+                // Current day / enabled but not checked → empty circle
+                else -> {
+                    Box(
+                        modifier = Modifier
+                            .size(25.dp)
                             .clip(CircleShape)
                             .background(
                                 if (day.isCurrentDay) HomeV2Tokens.Neutral200
                                 else HomeV2Tokens.NeutralWhite.copy(alpha = 0.3f)
                             )
-                    )
-                }
-                else -> {
-                    Box(
-                        modifier = Modifier
-                            .size(18.dp)
-                            .clip(CircleShape)
-                            .background(HomeV2Tokens.NeutralWhite.copy(alpha = 0.1f))
                     )
                 }
             }

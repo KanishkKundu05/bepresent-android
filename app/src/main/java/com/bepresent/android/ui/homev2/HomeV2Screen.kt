@@ -82,7 +82,7 @@ fun HomeV2Screen(
                         days = uiState.days,
                         modifier = Modifier.padding(top = 4.dp, bottom = 8.dp)
                     )
-                    Spacer(modifier = Modifier.height(8.dp))
+                    Spacer(modifier = Modifier.height(24.dp))
                 }
 
                 // Main card — state-switched
