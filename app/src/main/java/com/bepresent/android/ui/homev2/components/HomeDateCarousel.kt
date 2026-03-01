@@ -38,7 +38,7 @@ data class DayUiModel(
 
 // Arc transform arrays matching iOS exactly
 private val arcHorizontalPadding = listOf(6, 5, 2, 2, 2, 5, 6)
-private val arcYOffset = listOf(15, -10, -25, -25, -25, -10, 15)
+private val arcYOffset = listOf(40, 15, 0, 0, 0, 15, 40)
 private val arcRotation = listOf(-18f, -15f, -10f, 0f, 10f, 15f, 18f)
 
 @Composable

@@ -3,9 +3,12 @@ package com.bepresent.android.ui.homev2
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
@@ -19,7 +22,6 @@ import androidx.compose.ui.unit.dp
 import com.bepresent.android.data.db.AppIntention
 import com.bepresent.android.ui.homev2.components.ActiveSessionCard
 import com.bepresent.android.ui.homev2.components.BlockedTimeCard
-import com.bepresent.android.ui.homev2.components.DailyQuestCard
 import com.bepresent.android.ui.homev2.components.HomeDateCarousel
 import com.bepresent.android.ui.homev2.components.HomeHeaderRow
 import com.bepresent.android.ui.homev2.components.IntentionsCard
@@ -47,6 +49,8 @@ fun HomeV2Screen(
     var selectedAppForIntention by remember { mutableStateOf<InstalledApp?>(null) }
     var editingIntention by remember { mutableStateOf<AppIntention?>(null) }
 
+    val statusBarTop = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
+
     Box(modifier = Modifier.fillMaxSize()) {
         // Background gradient
         BackgroundV2()
@@ -56,13 +60,13 @@ fun HomeV2Screen(
             modifier = Modifier
                 .fillMaxSize()
         ) {
-            // Header (not scrollable)
+            // Header (not scrollable) — sits just below system status bar
             HomeHeaderRow(
                 streak = uiState.streak,
                 isStreakFrozen = uiState.isStreakFrozen,
                 weeklyXp = uiState.weeklyXp,
                 onProfileClick = onProfileClick,
-                modifier = Modifier.padding(top = 48.dp, bottom = 10.dp)
+                modifier = Modifier.padding(top = statusBarTop + 4.dp, bottom = 4.dp)
             )
 
             // Scrollable body
@@ -75,9 +79,9 @@ fun HomeV2Screen(
                 if (uiState.screenState == HomeScreenState.Idle) {
                     HomeDateCarousel(
                         days = uiState.days,
-                        modifier = Modifier.padding(top = 8.dp, bottom = 0.dp)
+                        modifier = Modifier.padding(top = 4.dp, bottom = 8.dp)
                     )
-                    Spacer(modifier = Modifier.height(16.dp))
+                    Spacer(modifier = Modifier.height(8.dp))
                 }
 
                 // Main card — state-switched
@@ -123,13 +127,6 @@ fun HomeV2Screen(
                             editingIntention = intention
                         }
                     )
-                }
-
-                Spacer(modifier = Modifier.height(20.dp))
-
-                // Daily Quest card
-                CardV2(modifier = Modifier.padding(horizontal = 16.dp)) {
-                    DailyQuestCard(state = uiState.dailyQuestState)
                 }
 
                 Spacer(modifier = Modifier.height(100.dp)) // Bottom padding for tab bar
