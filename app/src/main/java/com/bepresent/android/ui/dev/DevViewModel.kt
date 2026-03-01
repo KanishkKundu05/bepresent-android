@@ -44,6 +44,7 @@ data class DevUiState(
     val totalCoins: Int = 0,
     val streakFreezeAvailable: Boolean = false,
     val activeSessionId: String? = null,
+    val onboardingCompleted: Boolean = false,
     val runtimeLogs: List<String> = emptyList()
 )
 
@@ -73,9 +74,11 @@ class DevViewModel @Inject constructor(
             preferencesManager.totalCoins,
             preferencesManager.streakFreezeAvailable,
             preferencesManager.activeSessionId,
-            _permissions
-        ) { xp, coins, freeze, sessionId, perms ->
-            DataGroup(xp, coins, freeze, sessionId, perms)
+            combine(_permissions, preferencesManager.onboardingCompleted) { perms, onboarding ->
+                perms to onboarding
+            }
+        ) { xp, coins, freeze, sessionId, (perms, onboarding) ->
+            DataGroup(xp, coins, freeze, sessionId, perms, onboarding)
         }
     ) { intentions, session, fg, blocked, data ->
         DevUiState(
@@ -87,7 +90,8 @@ class DevViewModel @Inject constructor(
             totalXp = data.xp,
             totalCoins = data.coins,
             streakFreezeAvailable = data.freeze,
-            activeSessionId = data.sessionId
+            activeSessionId = data.sessionId,
+            onboardingCompleted = data.onboarding
         )
     }
 
@@ -100,7 +104,8 @@ class DevViewModel @Inject constructor(
         val coins: Int,
         val freeze: Boolean,
         val sessionId: String?,
-        val permissions: PermissionManager.PermissionStatus
+        val permissions: PermissionManager.PermissionStatus,
+        val onboarding: Boolean
     )
 
     init {
@@ -177,6 +182,12 @@ class DevViewModel @Inject constructor(
             putExtra(BlockedAppActivity.EXTRA_SHIELD_TYPE, shieldType)
         }
         getApplication<Application>().startActivity(intent)
+    }
+
+    fun resetOnboarding() {
+        viewModelScope.launch {
+            preferencesManager.setOnboardingCompleted(false)
+        }
     }
 
     fun clearRuntimeLogs() {
