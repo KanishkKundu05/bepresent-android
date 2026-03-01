@@ -34,4 +34,13 @@ interface PresentSessionDao {
         """
     )
     suspend fun getCompletedSessionsForDate(dayStartMs: Long, dayEndMs: Long): List<PresentSession>
+
+    @Query(
+        """
+        SELECT * FROM present_sessions
+        WHERE state = 'completed'
+        AND startedAt >= :dayStartMs AND startedAt < :dayEndMs
+        """
+    )
+    suspend fun getCompletedSessionsForDateRange(dayStartMs: Long, dayEndMs: Long): List<PresentSession>
 }

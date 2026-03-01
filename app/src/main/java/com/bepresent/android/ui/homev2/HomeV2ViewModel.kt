@@ -280,7 +280,7 @@ class HomeV2ViewModel @Inject constructor(
     private fun refreshBlockedTime() {
         viewModelScope.launch {
             try {
-                _totalBlockedTodayMs.value = usageStatsRepository.getTotalScreenTimeToday()
+                _totalBlockedTodayMs.value = sessionManager.getTotalBlockedTodayMs()
             } catch (_: Exception) { }
         }
     }

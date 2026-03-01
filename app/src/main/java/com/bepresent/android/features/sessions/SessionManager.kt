@@ -13,6 +13,7 @@ import com.bepresent.android.service.MonitoringService
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.Flow
 import org.json.JSONArray
+import java.util.Calendar
 import java.util.UUID
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -92,6 +93,17 @@ class SessionManager @Inject constructor(
             RuntimeLog.e(TAG, "parseBlockedJson FAILED for: '$json'", e)
             emptySet()
         }
+    }
+
+    suspend fun getTotalBlockedTodayMs(): Long {
+        val cal = Calendar.getInstance().apply {
+            set(Calendar.HOUR_OF_DAY, 0); set(Calendar.MINUTE, 0)
+            set(Calendar.SECOND, 0); set(Calendar.MILLISECOND, 0)
+        }
+        val startOfDay = cal.timeInMillis
+        val now = System.currentTimeMillis()
+        val sessions = sessionDao.getCompletedSessionsForDateRange(startOfDay, now)
+        return sessions.sumOf { it.goalDurationMinutes.toLong() * 60_000L }
     }
 
     companion object {
