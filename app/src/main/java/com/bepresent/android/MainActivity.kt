@@ -144,7 +144,6 @@ private fun MainAppContent() {
                 val viewModel: HomeV2ViewModel = hiltViewModel()
                 HomeV2Screen(
                     viewModel = viewModel,
-                    onProfileClick = { navController.navigate("profile") },
                     onLeaderboardClick = { navController.navigate(BottomTab.LeaderboardTab.route) },
                     onDevClick = { navController.navigate("dev") }
                 )

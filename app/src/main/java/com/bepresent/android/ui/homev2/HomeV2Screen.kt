@@ -31,17 +31,18 @@ import com.bepresent.android.ui.homev2.components.SessionModeSheet
 import com.bepresent.android.ui.intention.IntentionConfigSheet
 import com.bepresent.android.ui.picker.AppPickerSheet
 import com.bepresent.android.ui.picker.InstalledApp
+import com.bepresent.android.ui.profile.ProfileSheet
 
 @Composable
 fun HomeV2Screen(
     viewModel: HomeV2ViewModel,
-    onProfileClick: () -> Unit = {},
     onLeaderboardClick: () -> Unit = {},
     onDevClick: () -> Unit = {}
 ) {
     val uiState by viewModel.uiState.collectAsState()
 
     // Sheet states
+    var showProfileSheet by remember { mutableStateOf(false) }
     var showModeSheet by remember { mutableStateOf(false) }
     var showGoalSheet by remember { mutableStateOf(false) }
     var showAppPicker by remember { mutableStateOf(false) }
@@ -65,7 +66,7 @@ fun HomeV2Screen(
                 streak = uiState.streak,
                 isStreakFrozen = uiState.isStreakFrozen,
                 weeklyXp = uiState.weeklyXp,
-                onProfileClick = onProfileClick,
+                onProfileClick = { showProfileSheet = true },
                 modifier = Modifier.padding(top = statusBarTop + 4.dp, bottom = 4.dp)
             )
 
@@ -135,6 +136,15 @@ fun HomeV2Screen(
     }
 
     // --- Bottom Sheets ---
+
+    if (showProfileSheet) {
+        ProfileSheet(
+            onDismiss = { showProfileSheet = false },
+            onGetHelp = { /* TODO */ },
+            onGiveFeedback = { /* TODO */ },
+            onScreenTimeSettings = { /* TODO */ }
+        )
+    }
 
     if (showModeSheet) {
         SessionModeSheet(
