@@ -28,7 +28,7 @@ fun QuestionScreen(
     title: String,
     emoji: String,
     options: List<QuestionOption>,
-    questionType: QuestionType,
+    @Suppress("unused") questionType: QuestionType,
     selectedAnswer: String?,
     onSelect: (String) -> Unit
 ) {

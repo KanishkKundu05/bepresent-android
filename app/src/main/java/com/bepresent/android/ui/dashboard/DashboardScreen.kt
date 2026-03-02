@@ -194,15 +194,14 @@ fun DashboardScreen(
     // Intention Config (new)
     if (showIntentionConfig && selectedAppForIntention != null) {
         IntentionConfigSheet(
-            appName = selectedAppForIntention!!.label,
             onDismiss = {
                 showIntentionConfig = false
                 selectedAppForIntention = null
             },
-            onSave = { opens, time ->
+            onSave = { packageName, appName, opens, time ->
                 viewModel.createIntention(
-                    packageName = selectedAppForIntention!!.packageName,
-                    appName = selectedAppForIntention!!.label,
+                    packageName = packageName,
+                    appName = appName,
                     allowedOpensPerDay = opens,
                     timePerOpenMinutes = time
                 )
@@ -215,12 +214,13 @@ fun DashboardScreen(
     // Intention Config (edit)
     if (editingIntention != null) {
         IntentionConfigSheet(
-            appName = editingIntention!!.appName,
             existingIntention = editingIntention,
             onDismiss = { editingIntention = null },
-            onSave = { opens, time ->
+            onSave = { packageName, appName, opens, time ->
                 viewModel.updateIntention(
                     editingIntention!!.copy(
+                        packageName = packageName,
+                        appName = appName,
                         allowedOpensPerDay = opens,
                         timePerOpenMinutes = time
                     )

@@ -1,7 +1,9 @@
 package com.bepresent.android.ui.homev2.components
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -25,12 +27,14 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.bepresent.android.ui.homev2.HomeV2Tokens
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun HomeHeaderRow(
     streak: Int,
     isStreakFrozen: Boolean,
     weeklyXp: Int,
     onProfileClick: () -> Unit,
+    onDevClick: () -> Unit = {},
     onStreakClick: () -> Unit = {},
     onXpClick: () -> Unit = {},
     modifier: Modifier = Modifier
@@ -45,7 +49,7 @@ fun HomeHeaderRow(
                 .size(36.dp)
                 .clip(CircleShape)
                 .background(HomeV2Tokens.NeutralWhite.copy(alpha = 0.3f))
-                .clickable(onClick = onProfileClick),
+                .combinedClickable(onClick = onProfileClick, onLongClick = onDevClick),
             contentAlignment = Alignment.Center
         ) {
             Icon(

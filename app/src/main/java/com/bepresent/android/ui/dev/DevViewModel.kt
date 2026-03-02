@@ -6,6 +6,9 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.bepresent.android.data.datastore.PreferencesManager
 import com.bepresent.android.data.db.AppIntention
+import com.bepresent.android.ui.onboarding.v2.OnboardingScreenType
+import com.bepresent.android.ui.onboarding.v2.QuestionType
+import com.bepresent.android.ui.onboarding.v2.buildOnboardingScreens
 import com.bepresent.android.data.db.AppIntentionDao
 import com.bepresent.android.data.db.PresentSession
 import com.bepresent.android.data.db.PresentSessionDao
@@ -59,6 +62,30 @@ class DevViewModel @Inject constructor(
     private val intentionDao: AppIntentionDao,
     private val sessionDao: PresentSessionDao
 ) : AndroidViewModel(application) {
+
+    private val onboardingScreens = buildOnboardingScreens()
+
+    val onboardingScreenNames: List<String> = onboardingScreens.mapIndexed { i, screen ->
+        val name = when (screen) {
+            is OnboardingScreenType.Welcome -> "Welcome"
+            is OnboardingScreenType.UserWhy -> "UserWhy"
+            is OnboardingScreenType.UserHow -> "UserHow"
+            is OnboardingScreenType.UserWhat -> "UserWhat"
+            is OnboardingScreenType.Question -> "Q: ${screen.questionType.name}"
+            is OnboardingScreenType.Loading -> "Loading"
+            is OnboardingScreenType.ShockPage1 -> "ShockPage1"
+            is OnboardingScreenType.ShockPage2 -> "ShockPage2"
+            is OnboardingScreenType.Rating -> "Rating"
+            is OnboardingScreenType.PermissionsSetup -> "Permissions"
+            is OnboardingScreenType.NotificationPermission -> "Notifications"
+            is OnboardingScreenType.SevenDayChallenge -> "7DayChallenge"
+            is OnboardingScreenType.PostPaywallMessage -> "PostPaywall"
+            is OnboardingScreenType.ChooseUsername -> "Username"
+            is OnboardingScreenType.SelectApps -> "SelectApps"
+            is OnboardingScreenType.Acquisition -> "Acquisition"
+        }
+        "$i: $name"
+    }
 
     private val _foregroundApp = MutableStateFlow<String?>(null)
     private val _blockedPackages = MutableStateFlow<Set<String>>(emptySet())
@@ -182,6 +209,13 @@ class DevViewModel @Inject constructor(
             putExtra(BlockedAppActivity.EXTRA_SHIELD_TYPE, shieldType)
         }
         getApplication<Application>().startActivity(intent)
+    }
+
+    fun launchOnboardingAtScreen(index: Int) {
+        viewModelScope.launch {
+            preferencesManager.setOnboardingV2Progress(index)
+            preferencesManager.setOnboardingCompleted(false)
+        }
     }
 
     fun resetOnboarding() {

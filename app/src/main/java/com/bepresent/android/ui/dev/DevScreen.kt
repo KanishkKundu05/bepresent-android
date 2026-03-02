@@ -153,6 +153,27 @@ fun DevScreen(
                 Text("Reset & Show Onboarding")
             }
 
+            // --- Onboarding Tester ---
+            SectionHeader("Onboarding Tester")
+            Card(modifier = Modifier.fillMaxWidth()) {
+                Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Text("Jump to any screen:", style = MaterialTheme.typography.bodySmall)
+                    FlowRow(
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        verticalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        viewModel.onboardingScreenNames.forEachIndexed { index, name ->
+                            OutlinedButton(
+                                onClick = { viewModel.launchOnboardingAtScreen(index) },
+                                modifier = Modifier.height(32.dp)
+                            ) {
+                                Text(name, style = MaterialTheme.typography.labelSmall)
+                            }
+                        }
+                    }
+                }
+            }
+
             // --- Runtime logs ---
             SectionHeader("Runtime Logs (${state.runtimeLogs.size})")
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {

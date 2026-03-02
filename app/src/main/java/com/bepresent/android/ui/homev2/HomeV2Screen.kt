@@ -32,6 +32,7 @@ import com.bepresent.android.ui.intention.IntentionConfigSheet
 import com.bepresent.android.ui.profile.ProfileSheet
 
 @Composable
+@Suppress("unused")
 fun HomeV2Screen(
     viewModel: HomeV2ViewModel,
     onLeaderboardClick: () -> Unit = {},
@@ -63,6 +64,7 @@ fun HomeV2Screen(
                 isStreakFrozen = uiState.isStreakFrozen,
                 weeklyXp = uiState.weeklyXp,
                 onProfileClick = { showProfileSheet = true },
+                onDevClick = onDevClick,
                 modifier = Modifier.padding(top = statusBarTop + 4.dp, bottom = 4.dp)
             )
 

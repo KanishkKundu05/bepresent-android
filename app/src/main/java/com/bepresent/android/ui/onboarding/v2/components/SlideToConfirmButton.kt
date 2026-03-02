@@ -12,7 +12,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowForward
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
@@ -121,7 +121,7 @@ fun SlideToConfirmButton(
             contentAlignment = Alignment.Center
         ) {
             Icon(
-                imageVector = if (isCompleted) Icons.Default.Check else Icons.Default.ArrowForward,
+                imageVector = if (isCompleted) Icons.Default.Check else Icons.AutoMirrored.Filled.ArrowForward,
                 contentDescription = null,
                 tint = OnboardingTokens.BrandPrimary,
                 modifier = Modifier.size(24.dp)
